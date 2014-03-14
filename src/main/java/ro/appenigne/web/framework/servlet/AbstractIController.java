@@ -17,6 +17,7 @@ import ro.appenigne.web.framework.datastore.Datastore;
 import ro.appenigne.web.framework.datastore.KeysOnlyDatastoreCallback;
 import ro.appenigne.web.framework.exception.InvalidAuthCookie;
 import ro.appenigne.web.framework.exception.InvalidField;
+import ro.appenigne.web.framework.exception.SendRedirect;
 import ro.appenigne.web.framework.exception.UnauthorizedAccess;
 import ro.appenigne.web.framework.request.FilteredRequest;
 import ro.appenigne.web.framework.request.TrimRequest;
@@ -28,8 +29,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * The public abstract class that all controllers must implement.
@@ -45,26 +44,77 @@ public abstract class AbstractIController {
     public User currentUser;
     public UserService userService;
 
+    public void preInit() throws SendRedirect {
+        String reqUrl = req.getRequestURL().toString();
+        String appDomain = Utils.getAppId() + ".appspot.com";
+
+        if (!Utils.isTask(req) && (reqUrl.startsWith("http://" + appDomain) || reqUrl.startsWith("https://" + appDomain))) {
+            if (req.getHeader("X-Requested-With") == null || !req.getHeader("X-Requested-With").equalsIgnoreCase("XMLHttpRequest")) {
+                String domain = System.getProperty("domeniu");
+                if (domain != null && !domain.isEmpty()) {
+                    reqUrl = reqUrl.replace(appDomain, domain);
+                    sendRedirect(reqUrl);
+                }
+            }
+        }
+
+        if (!req.isSecure() && !Utils.isLocalServer()) {
+            if (reqUrl.contains(appDomain)) {
+                String checkVersionChar = reqUrl.substring(0, reqUrl.indexOf(appDomain));
+                if (checkVersionChar.contains(".")) {
+                    reqUrl = reqUrl.replace(checkVersionChar, checkVersionChar.replaceAll("[\\.]+", "-dot-"));
+                }
+
+            }
+            sendRedirect(reqUrl);
+        }
+    }
+
     public void run(HttpServletRequest req, HttpServletResponse resp, Entity contCurent) {
-        init(req, resp, contCurent);
-        this.userService = UserServiceFactory.getUserService();
-        this.currentUser = userService.getCurrentUser();
-        createDatastore();
-        createDatastoreCallbacks();
-        preExecute();
         try {
+            preInit();
+            this.contCurent = contCurent;
+            initHttp(req, resp);
+            this.userService = UserServiceFactory.getUserService();
+            this.currentUser = userService.getCurrentUser();
+            getCurrentEmail();
+            createDatastore();
+            createDatastoreCallbacks();
+            preExecute();
             finish();
+        } catch (SendRedirect sendRedirect) {
+            try {
+                resp.sendRedirect(sendRedirect.getMessage());
+            } catch (IOException e) {
+                Log.s(e);
+            }
         } catch (ExecutionException | InterruptedException e) {
             Log.s(e);
         }
     }
 
-    private void init(HttpServletRequest req, HttpServletResponse resp, Entity contCurent) {
-        this.req = req;
-        this.resp = resp;
-        if (contCurent != null) {
-            this.contCurent = contCurent;
+    public void initHttp(HttpServletRequest req, HttpServletResponse resp) {
+        initHttpReq(req);
+        initHttpResp(resp);
+    }
+
+    public void initHttpReq(HttpServletRequest req) {
+        XssCheck xssCheck = this.getClass().getAnnotation(XssCheck.class);
+        if (xssCheck != null && !xssCheck.value()) {
+            if (req instanceof TrimRequest) {
+                this.req = req;
+            } else {
+                this.req = new TrimRequest(req);
+            }
+        } else {
+            HttpServletRequest filteredReq = new FilteredRequest(req);
+            initHttp(filteredReq, resp);
+            this.req = filteredReq;
         }
+    }
+
+    public void initHttpResp(HttpServletResponse resp) {
+        this.resp = resp;
     }
 
     /**
@@ -101,74 +151,26 @@ public abstract class AbstractIController {
     }
 
     public void preExecute() {
-        //intra "OPTIONS /do/ajax/ HTTP/1.1" 200 0 - "Microsoft Office Protocol Discovery"
-        //if ("OPTIONS".equals(req.getMethod())) return;
-        String reqUrl = req.getRequestURL().toString();
-        String appDomain = Utils.getAppId() + ".appspot.com";
-
-        if (!Utils.isTask(req) && (reqUrl.startsWith("http://" + appDomain) || reqUrl.startsWith("https://" + appDomain))) {
-            if (req.getHeader("X-Requested-With") == null || !req.getHeader("X-Requested-With").equalsIgnoreCase("XMLHttpRequest")) {
-                String domeniu = System.getProperty("domeniu");
-                if (domeniu != null && !domeniu.isEmpty()) {
-                    reqUrl = reqUrl.replace(appDomain, domeniu);
-                    if (sendRedirect(reqUrl)) return;
-                }
-            }
-        }
-
-        if (!req.isSecure() && !Utils.isLocalServer()) {
-            if (reqUrl.contains(appDomain)) {
-                String checkVersionChar = reqUrl.substring(0, reqUrl.indexOf(appDomain));
-                if (checkVersionChar.contains(".")) {
-                    reqUrl = reqUrl.replace(checkVersionChar, checkVersionChar.replaceAll("[\\.]+", "-dot-"));
-                }
-
-            }
-            if (sendRedirect(reqUrl)) return;
-        }
-
-
-        HttpServletRequest filteredReq = new FilteredRequest(req);
-        HttpServletRequest trimReq = new TrimRequest(req);
-
-        String queryLink = (trimReq.getQueryString() != null) ? "/?" + trimReq.getQueryString() : "/";
+        String queryLink = (req.getQueryString() != null) ? "/?" + req.getQueryString() : "/";
         try {
-            boolean searchController = false;
-            Logger log = Logger.getLogger("");
             try {
-                contCurent = getCont(trimReq.getParameter(_hashContCurentParamName));
-                AbstractIController controller = this;
-                if (controller.getClass().getSimpleName().equalsIgnoreCase("search")) {
-                    searchController = true;
-                }
-                RequiredLogIn reqLogIn = controller.getClass().getAnnotation(RequiredLogIn.class);
-                XssCheck xssCheck = controller.getClass().getAnnotation(XssCheck.class);
+                contCurent = getCont(req.getParameter(_hashContCurentParamName));
+                RequiredLogIn reqLogIn = this.getClass().getAnnotation(RequiredLogIn.class);
+
                 if (reqLogIn != null && reqLogIn.value()) {
-                    this.checkRole(controller, contCurent);
+                    this.checkRole(this, contCurent);
                 }
                 // we don't need to check the backend version since we are using modules now (and dispatch.xml )
                 // and we have no more problems with double authentication
                 if (/*!Utils.isAppVersion("backend") && */!uniqueInstanceCookie()) {
                     throw new InvalidAuthCookie("uniqueInstanceCookie");
                 }
-                this.logAuthUser();
-                if (controller.getClass().getSimpleName().equals("SalveazaTemplate")) {
-                    controller.init(req, resp, contCurent);
-                    controller.execute();
-                } else {
-                    if (xssCheck != null && !xssCheck.value()) {
-                        controller.init(trimReq, resp, contCurent);
-                        controller.execute();
-                    } else {
-                        controller.init(filteredReq, resp, contCurent);
-                        controller.execute();
-                    }
-                }
+                this.logAuthInfo();
+                execute();
                 resp.setHeader("appV", SystemProperty.applicationVersion.get());
-            } catch (UnauthorizedAccess e) {
-                log.log(Level.CONFIG, e.getClass().getSimpleName(), e);
-                if (req.getHeader("X-Requested-With") == null
-                        || !req.getHeader("X-Requested-With").equalsIgnoreCase("XMLHttpRequest")) {
+            } catch (UnauthorizedAccess | InvalidAuthCookie e) {
+                Log.c(e);
+                if (!isAjax()) {
                     resp.sendRedirect(userService.createLogoutURL(queryLink));
                 } else {
                     resp.reset();
@@ -177,6 +179,7 @@ public abstract class AbstractIController {
                     resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 }
             } catch (InvalidField e) {
+                Log.c(e);
                 if (Utils.isTask(req)) {
                     BlobKey blobKey = null;
                     if (req.getParameter("_blobKey") != null) {
@@ -192,8 +195,6 @@ public abstract class AbstractIController {
                     resp.getWriter().print(e.getMessage());
                     resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 }
-                log.log(Level.CONFIG, e.getClass().getSimpleName(), e);
-
             } /*catch (Notification e) {
                 resp.setContentType("text/plain; charset=UTF-8");
                 log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
@@ -225,46 +226,44 @@ public abstract class AbstractIController {
                 taskOptions.param("html", sw.toString().replaceAll("\n", "<br />"));
                 queue.add(taskOptions);
             }*/ catch (EntityNotFoundException | ApiProxy.CapabilityDisabledException e) {
+                Log.s(e);
                 resp.setContentType("text/plain; charset=UTF-8");
-                log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
                 resp.reset();
                 resp.getWriter().print(e.getMessage());
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             } catch (IllegalStateException e) {
+                Log.s(e);
                 resp.setContentType("text/plain; charset=UTF-8");
-                log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
                 this.preExecute();
             } catch (ApiProxy.OverQuotaException e) {
-                log.log(Level.CONFIG, e.getClass().getSimpleName(), e);
+                Log.c(e);
             } catch (DeadlineExceededException e) {
-                log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
+                Log.s(e);
                 resp.reset();
                 resp.getWriter().print("admin.backend.deadlineExceededException");
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             } catch (OutOfMemoryError e) {
-                log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
+                Log.s(e);
                 resp.reset();
-                if (searchController) {
+                if (this.getClass().getSimpleName().equalsIgnoreCase("search")) {
                     resp.getWriter().print("admin.backend.outOfSearchMemoryError");
                 } else {
                     resp.getWriter().print("admin.backend.outOfMemoryError");
                 }
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-
             } catch (DatastoreFailureException e) {
-                log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
+                Log.s(e);
                 resp.reset();
                 resp.getWriter().print(e.getMessage());
                 resp.setStatus(HttpServletResponse.SC_ACCEPTED);
             } catch (Exception e) {
-                log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
+                Log.s(e);
                 resp.reset();
                 resp.getWriter().print(e.getMessage());
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             }
         } catch (Exception e) {
-            Logger log = Logger.getLogger("OOPS");
-            log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
+            Log.s(e);
         }
     }
 
@@ -297,11 +296,11 @@ public abstract class AbstractIController {
             if (!userService.isUserAdmin()) {
                 if (contMasterSudo != null) {
                     if (!UserUtils.getList(contMasterSudo, "email").contains(currentUser.getEmail())) {
-                        Log.echo("Cu Sudo", cont, currentUser.getEmail());
+                        Log.c("Cu Sudo", cont, currentUser.getEmail());
                         throw new UnauthorizedAccess("User does not match Account");
                     }
                 } else if (!UserUtils.getList(cont, "email").contains(currentUser.getEmail())) {
-                    Log.echo("Fara Sudo", cont, currentUser.getEmail());
+                    Log.c("Fara Sudo", cont, currentUser.getEmail());
                     throw new UnauthorizedAccess("User does not match Account");
                 }
             }
@@ -349,19 +348,12 @@ public abstract class AbstractIController {
         return null;
     }
 
-    private boolean sendRedirect(String reqUrl) {
-        try {
-            if (req.getQueryString() != null) {
-                resp.sendRedirect(reqUrl.replace("http:", "https:") + "?" + req.getQueryString());
-            } else {
-                resp.sendRedirect(reqUrl.replace("http:", "https:"));
-            }
-            return true;
-        } catch (IOException e) {
-            Logger log = Logger.getLogger(this.getClass().getSimpleName());
-            log.log(Level.SEVERE, "", e);
+    private void sendRedirect(String reqUrl) throws SendRedirect {
+        if (req.getQueryString() != null) {
+            throw new SendRedirect(reqUrl.replace("http:", "https:") + "?" + req.getQueryString());
+        } else {
+            throw new SendRedirect(reqUrl.replace("http:", "https:"));
         }
-        return false;
     }
 
     private Boolean uniqueInstanceCookie() {
@@ -421,20 +413,20 @@ public abstract class AbstractIController {
         return false;
     }
 
-    private void logAuthUser() {
+    private void logAuthInfo() {
         if (contCurent != null) {
             if (userService.getCurrentUser() != null) {
-                Log.echo(Level.CONFIG, "Utilizator logat autentificat: " + getCurrentEmail());
+                Log.c("Utilizator logat autentificat: " + getCurrentEmail());
             } else if (Utils.isTask(req)) {
-                Log.echo(Level.CONFIG, "Utilizator nelogat autentificat prin task:" + getCurrentEmail());
+                Log.c("Utilizator nelogat autentificat prin task:" + getCurrentEmail());
             } else {
-                Log.echo(Level.SEVERE, "Utilizator nelogat autentificat: " + getCurrentEmail());
+                Log.s("Utilizator nelogat autentificat: " + getCurrentEmail());
             }
         } else {
             if (userService.getCurrentUser() != null) {
-                Log.echo(Level.CONFIG, "Utilizator logat neautentificat: " + getCurrentEmail());
+                Log.c("Utilizator logat neautentificat: " + getCurrentEmail());
             }
-            Log.echo(Level.CONFIG, "Utilizator nelogat.");
+            Log.c("Utilizator nelogat.");
         }
         // Utils.echo(Level.CONFIG, "Memory free: " + ((Runtime.getRuntime().freeMemory()) / 1024 / 1024));
         // Utils.echo(Level.CONFIG, "Total Memory" + Runtime.getRuntime().maxMemory() / 1024 / 1024);
@@ -442,11 +434,12 @@ public abstract class AbstractIController {
 
     @SuppressWarnings("unused")
     private void checkAjax(AbstractIController controller, HttpServletRequest req) throws InvalidField {
-        if (req.getHeader("X-Requested-With") == null
-                || !req.getHeader("X-Requested-With").equalsIgnoreCase("XMLHttpRequest")) {
+        if (!isAjax()) {
             throw new InvalidField(InvalidField.i18n("admin.backend.ajaxException", "name", controller.getClass().getSimpleName()));
         }
-
+    }
+    private boolean isAjax() {
+       return req.getHeader("X-Requested-With") != null && req.getHeader("X-Requested-With").equalsIgnoreCase("XMLHttpRequest");
     }
 
     private void checkRole(AbstractIController controller, Entity cont) throws UnauthorizedAccess, InvalidField {
@@ -484,6 +477,5 @@ public abstract class AbstractIController {
         }
         return userService.isUserAdmin();
     }
-
 
 }

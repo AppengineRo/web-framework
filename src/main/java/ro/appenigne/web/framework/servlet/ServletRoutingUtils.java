@@ -11,7 +11,7 @@ public class ServletRoutingUtils {
     private static final AtomicReference<LinkedHashMap<String[], String>> urlPatterns = new AtomicReference<>();
     private static final String PREFIX = "url:";
 
-    public static Object getController(HttpServletRequest request) throws UnsupportedEncodingException, IllegalAccessException, InstantiationException, ClassNotFoundException {
+    public static Object getController(HttpServletRequest request) throws UnsupportedEncodingException, ClassNotFoundException, IllegalAccessException, InstantiationException {
         if (urlPatterns.get() == null) {
             writeUrlPatterns();
         }

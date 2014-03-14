@@ -11,7 +11,7 @@ public class TrimRequest extends AbstractSanitizedRequest {
         if (input == null) {
             return null;
         }
-        return input.trim().replaceAll("[ ]{2,}", " ");
+        return input.trim()/*.replaceAll("[ ]{2,}", " ")*/;
     }
 
 }
