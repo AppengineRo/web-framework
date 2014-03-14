@@ -1,11 +1,10 @@
-package ro.appenigne.web.framework.utils;
+package ro.appenigne.web.framework.datastore;
 
 import com.google.appengine.api.datastore.*;
 import com.google.appengine.api.memcache.ErrorHandlers;
 import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
-import ro.appenigne.web.framework.datastore.AbstractDatastoreCallbacks;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -13,21 +12,24 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 
 public class Datastore implements DatastoreService {
-    public DatastoreService datastore;
-    public AsyncDatastoreService asyncDatastoreService;
+    private DatastoreService datastore;
+    private AsyncDatastoreService asyncDatastoreService;
     MemcacheService memcacheService;
+
     private ArrayList<Future<?>> toPutObjects = new ArrayList<>();
     private ArrayList<Entity> postPutEntities = new ArrayList<>();
-    private Map<Key, Entity> cacheEntities = new HashMap<>();
-    AbstractDatastoreCallbacks datastoreCallbacks = null;
+    private LinkedHashMap<Key, Entity> cacheEntities = new LinkedHashMap<>();
+    private LinkedHashMap<String, ArrayList<IDatastorePostPut>> postPuts = new LinkedHashMap<>();
+    ;
+    private LinkedHashMap<String, ArrayList<IDatastorePrePut>> prePuts = new LinkedHashMap<>();
 
     public Datastore() {
-        datastore = DatastoreServiceFactory.getDatastoreService();
-        asyncDatastoreService = DatastoreServiceFactory.getAsyncDatastoreService();
+        this.datastore = DatastoreServiceFactory.getDatastoreService();
+        this.asyncDatastoreService = DatastoreServiceFactory.getAsyncDatastoreService();
         memcacheService = MemcacheServiceFactory.getMemcacheService();
         memcacheService.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.SEVERE));
 
-        String datastoreCallbacksClass = System.getProperty("datastoreCallbacksClass");
+        /*String datastoreCallbacksClass = System.getProperty("datastoreCallbacksClass");
         if (datastoreCallbacksClass != null && !datastoreCallbacksClass.isEmpty()) {
             try {
                 Class<?> controllerClass = Class.forName(datastoreCallbacksClass);
@@ -37,6 +39,97 @@ public class Datastore implements DatastoreService {
             } catch (Exception e) {
                 Log.s(e);
             }
+        }*/
+    }
+
+    /**
+     * @param postPutCallback the callback to be executed
+     * @param kinds           can be null --> will call for all kinds
+     */
+    public void addPostPut(IDatastorePostPut postPutCallback, String... kinds) {
+        if (kinds == null) {
+            ArrayList<IDatastorePostPut> postPuts = this.postPuts.get(null);
+            if (postPuts == null) {
+                postPuts = new ArrayList<>();
+                this.postPuts.put(null, postPuts);
+            }
+            postPuts.add(postPutCallback);
+        } else {
+            for (String kind : kinds) {
+                ArrayList<IDatastorePostPut> postPuts = this.postPuts.get(kind);
+                if (postPuts == null) {
+                    postPuts = new ArrayList<>();
+                    this.postPuts.put(kind, postPuts);
+                }
+                postPuts.add(postPutCallback);
+            }
+
+        }
+    }
+
+    /**
+     * @param prePutCallback the callback to be executed
+     * @param kinds          can be null --> will call for all kinds
+     */
+    public void addPrePut(IDatastorePrePut prePutCallback, String... kinds) {
+        if (kinds == null) {
+            ArrayList<IDatastorePrePut> prePuts = this.prePuts.get(null);
+            if (prePuts == null) {
+                prePuts = new ArrayList<>();
+                this.prePuts.put(null, prePuts);
+            }
+            prePuts.add(prePutCallback);
+        } else {
+            for (String kind : kinds) {
+                ArrayList<IDatastorePrePut> prePuts = this.prePuts.get(kind);
+                if (prePuts == null) {
+                    prePuts = new ArrayList<>();
+                    this.prePuts.put(kind, prePuts);
+                }
+                prePuts.add(prePutCallback);
+            }
+
+        }
+    }
+
+    public void clearAllDatastoreCallbacks() {
+        clearAllPostPut();
+        clearAllPrePut();
+    }
+
+    public void clearAllPostPut() {
+        postPuts.clear();
+    }
+
+    public void clearAllPrePut() {
+        prePuts.clear();
+    }
+
+    private void triggerPrePut(Entity entity) {
+        String kind = entity.getKind();
+        ArrayList<IDatastorePrePut> datastoreCallbacks = new ArrayList<>();
+        if (prePuts.get(kind) != null) {
+            datastoreCallbacks.addAll(prePuts.get(kind));
+        }
+        if (prePuts.get(null) != null) {
+            datastoreCallbacks.addAll(prePuts.get(null));
+        }
+        for (IDatastorePrePut dc : datastoreCallbacks) {
+            dc.prePut(entity);
+        }
+    }
+
+    private void triggerPostPut(Entity entity) {
+        String kind = entity.getKind();
+        ArrayList<IDatastorePostPut> datastoreCallbacks = new ArrayList<>();
+        if (postPuts.get(kind) != null) {
+            datastoreCallbacks.addAll(postPuts.get(kind));
+        }
+        if (postPuts.get(null) != null) {
+            datastoreCallbacks.addAll(postPuts.get(null));
+        }
+        for (IDatastorePostPut dc : datastoreCallbacks) {
+            dc.postPut(entity);
         }
     }
 
@@ -51,18 +144,6 @@ public class Datastore implements DatastoreService {
             memcacheService.put(_hashContCurent, cont, Expiration.byDeltaSeconds(600));//10 min
         }// else a luat din memcache --> am eficientizat cu vreo 15ms requestul
         return cont;
-    }
-
-    private void triggerPrePut(Entity entity) {
-        if(datastoreCallbacks !=null){
-            datastoreCallbacks.prePut(entity);
-        }
-    }
-
-    private void triggerPostPut(Entity entity) {
-        if(datastoreCallbacks !=null){
-            datastoreCallbacks.postPut(entity);
-        }
     }
 
     public Entity cacheGet(Key k) throws EntityNotFoundException {

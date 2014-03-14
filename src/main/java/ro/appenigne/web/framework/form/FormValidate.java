@@ -4,8 +4,8 @@ import com.google.appengine.api.NamespaceManager;
 import com.google.appengine.api.datastore.*;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.gson.Gson;
+import ro.appenigne.web.framework.datastore.Datastore;
 import ro.appenigne.web.framework.exception.InvalidField;
-import ro.appenigne.web.framework.utils.Datastore;
 import ro.appenigne.web.framework.utils.GsonUtils;
 import ro.appenigne.web.framework.utils.Utils;
 

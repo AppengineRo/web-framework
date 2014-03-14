@@ -1,49 +1,108 @@
 package ro.appenigne.web.framework.servlet;
 
+
 import com.google.appengine.api.NamespaceManager;
 import com.google.appengine.api.blobstore.BlobKey;
 import com.google.appengine.api.datastore.*;
-import com.google.appengine.api.datastore.Query.FilterOperator;
-import com.google.appengine.api.memcache.ErrorHandlers;
-import com.google.appengine.api.memcache.MemcacheService;
-import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.users.User;
 import com.google.appengine.api.users.UserService;
 import com.google.appengine.api.users.UserServiceFactory;
 import com.google.appengine.api.utils.SystemProperty;
-import com.google.apphosting.api.ApiProxy.CapabilityDisabledException;
-import com.google.apphosting.api.ApiProxy.OverQuotaException;
+import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.DeadlineExceededException;
 import ro.appenigne.web.framework.annotation.RequiredLogIn;
 import ro.appenigne.web.framework.annotation.RequiredType;
 import ro.appenigne.web.framework.annotation.XssCheck;
+import ro.appenigne.web.framework.datastore.Datastore;
+import ro.appenigne.web.framework.datastore.KeysOnlyDatastoreCallback;
+import ro.appenigne.web.framework.exception.InvalidAuthCookie;
 import ro.appenigne.web.framework.exception.InvalidField;
-import ro.appenigne.web.framework.exception.RepeatTaskException;
 import ro.appenigne.web.framework.exception.UnauthorizedAccess;
 import ro.appenigne.web.framework.request.FilteredRequest;
 import ro.appenigne.web.framework.request.TrimRequest;
 import ro.appenigne.web.framework.utils.*;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-@SuppressWarnings("serial")
-public class RouterServlet extends HttpServlet {
+/**
+ * The public abstract class that all controllers must implement.
+ */
+public abstract class AbstractIController {
+    public String _hashContCurentParamName = "_hashContCurent";
+    public String _hashContMasterSudoParamName = "_hashContMasterSudo";
+    public HttpServletRequest req;
+    public HttpServletResponse resp;
+    public Entity contCurent = null;
+    public Datastore datastore;
+    private String currentEmail;
+    public User currentUser;
+    public UserService userService;
 
-    @Override
-    public void service(HttpServletRequest req, HttpServletResponse resp) {
+    public void run(HttpServletRequest req, HttpServletResponse resp, Entity contCurent) {
+        init(req, resp, contCurent);
+        this.userService = UserServiceFactory.getUserService();
+        this.currentUser = userService.getCurrentUser();
+        createDatastore();
+        createDatastoreCallbacks();
+        preExecute();
+        try {
+            finish();
+        } catch (ExecutionException | InterruptedException e) {
+            Log.s(e);
+        }
+    }
+
+    private void init(HttpServletRequest req, HttpServletResponse resp, Entity contCurent) {
+        this.req = req;
+        this.resp = resp;
+        if (contCurent != null) {
+            this.contCurent = contCurent;
+        }
+    }
+
+    /**
+     * Default implementation adds a datastore callback that prevents puts on empty entities
+     */
+    public void createDatastoreCallbacks() {
+        datastore.addPrePut(new KeysOnlyDatastoreCallback());
+    }
+
+    public void createDatastore() {
+        this.datastore = new Datastore();
+    }
+
+    @SuppressWarnings("unused")
+    public String getCurrentEmail() {
+        if (this.currentEmail == null) {
+            if (Utils.isTask(req)) {
+                this.currentEmail = req.getParameter("_emailContCurent");
+            } else if (currentUser != null) {
+                this.currentEmail = currentUser.getEmail();
+            }
+        }
+        return this.currentEmail;
+    }
+
+    /**
+     * The execute method of the controllers.
+     * Executes their specific action using the given HTTP request and response objects.
+     */
+    public abstract void execute() throws Exception;
+
+    private void finish() throws ExecutionException, InterruptedException {
+        datastore.commit();
+    }
+
+    public void preExecute() {
         //intra "OPTIONS /do/ajax/ HTTP/1.1" 200 0 - "Microsoft Office Protocol Discovery"
         //if ("OPTIONS".equals(req.getMethod())) return;
-
         String reqUrl = req.getRequestURL().toString();
         String appDomain = Utils.getAppId() + ".appspot.com";
 
@@ -52,7 +111,7 @@ public class RouterServlet extends HttpServlet {
                 String domeniu = System.getProperty("domeniu");
                 if (domeniu != null && !domeniu.isEmpty()) {
                     reqUrl = reqUrl.replace(appDomain, domeniu);
-                    if (sendRedirect(req, resp, reqUrl)) return;
+                    if (sendRedirect(reqUrl)) return;
                 }
             }
         }
@@ -65,45 +124,47 @@ public class RouterServlet extends HttpServlet {
                 }
 
             }
-            if (sendRedirect(req, resp, reqUrl)) return;
+            if (sendRedirect(reqUrl)) return;
         }
 
 
         HttpServletRequest filteredReq = new FilteredRequest(req);
         HttpServletRequest trimReq = new TrimRequest(req);
-        UserService userService = UserServiceFactory.getUserService();
+
         String queryLink = (trimReq.getQueryString() != null) ? "/?" + trimReq.getQueryString() : "/";
-        Entity cont;
         try {
             boolean searchController = false;
             Logger log = Logger.getLogger("");
             try {
-                cont = UserUtils.getCont(trimReq.getParameter("_hashContCurent"), trimReq);
-                IController controller = this.getController(trimReq);
+                contCurent = getCont(trimReq.getParameter(_hashContCurentParamName));
+                AbstractIController controller = this;
                 if (controller.getClass().getSimpleName().equalsIgnoreCase("search")) {
                     searchController = true;
                 }
                 RequiredLogIn reqLogIn = controller.getClass().getAnnotation(RequiredLogIn.class);
                 XssCheck xssCheck = controller.getClass().getAnnotation(XssCheck.class);
                 if (reqLogIn != null && reqLogIn.value()) {
-                    this.checkRole(controller, cont);
+                    this.checkRole(controller, contCurent);
                 }
                 // we don't need to check the backend version since we are using modules now (and dispatch.xml )
                 // and we have no more problems with double authentication
-                if (/*!Utils.isAppVersion("backend") && */!uniqueInstanceCookie(req, cont, userService)) {
-                    throw new UnauthorizedAccess("uniqueInstanceCookie");
+                if (/*!Utils.isAppVersion("backend") && */!uniqueInstanceCookie()) {
+                    throw new InvalidAuthCookie("uniqueInstanceCookie");
                 }
-                this.logMemory(cont, userService, req);
+                this.logAuthUser();
                 if (controller.getClass().getSimpleName().equals("SalveazaTemplate")) {
-                    controller.run(req, resp, cont);
+                    controller.init(req, resp, contCurent);
+                    controller.execute();
                 } else {
                     if (xssCheck != null && !xssCheck.value()) {
-                        controller.run(trimReq, resp, cont);
+                        controller.init(trimReq, resp, contCurent);
+                        controller.execute();
                     } else {
-                        controller.run(filteredReq, resp, cont);
+                        controller.init(filteredReq, resp, contCurent);
+                        controller.execute();
                     }
                 }
-                resp.addHeader("appV", SystemProperty.applicationVersion.get());
+                resp.setHeader("appV", SystemProperty.applicationVersion.get());
             } catch (UnauthorizedAccess e) {
                 log.log(Level.CONFIG, e.getClass().getSimpleName(), e);
                 if (req.getHeader("X-Requested-With") == null
@@ -163,7 +224,7 @@ public class RouterServlet extends HttpServlet {
                 e.printStackTrace(pw);
                 taskOptions.param("html", sw.toString().replaceAll("\n", "<br />"));
                 queue.add(taskOptions);
-            }*/ catch (EntityNotFoundException | ServletException | RepeatTaskException | InterruptedException | CapabilityDisabledException e) {
+            }*/ catch (EntityNotFoundException | ApiProxy.CapabilityDisabledException e) {
                 resp.setContentType("text/plain; charset=UTF-8");
                 log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
                 resp.reset();
@@ -172,8 +233,8 @@ public class RouterServlet extends HttpServlet {
             } catch (IllegalStateException e) {
                 resp.setContentType("text/plain; charset=UTF-8");
                 log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
-                this.service(req, resp);
-            } catch (OverQuotaException e) {
+                this.preExecute();
+            } catch (ApiProxy.OverQuotaException e) {
                 log.log(Level.CONFIG, e.getClass().getSimpleName(), e);
             } catch (DeadlineExceededException e) {
                 log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
@@ -207,7 +268,88 @@ public class RouterServlet extends HttpServlet {
         }
     }
 
-    private boolean sendRedirect(HttpServletRequest req, HttpServletResponse resp, String reqUrl) {
+    public Entity getCont(String _hashContCurent) throws EntityNotFoundException, UnauthorizedAccess {
+        Key keyCont;
+        try {
+            keyCont = KeyFactory.stringToKey(_hashContCurent);
+        } catch (NullPointerException npe) {
+            Log.d(npe);
+            return null;
+        } catch (IllegalArgumentException iae) {
+            Log.d(iae);
+            return null;
+        }
+
+        if (keyCont.getName() != null) {
+            if (keyCont.getName().equals(AbstractUserType.SuperAdministrator)) {
+                return getSuperAdminCont(req);
+            }
+        } else {
+            Entity cont = datastore.getFromMemOrDb(_hashContCurent);
+            Entity contMasterSudo = datastore.getFromMemOrDb(req.getParameter("_hashContMasterSudo"));
+            if (currentUser == null) {
+                if (Utils.isTask(req)) {
+                    return cont;
+                } else {
+                    return null;
+                }
+            }
+            if (!userService.isUserAdmin()) {
+                if (contMasterSudo != null) {
+                    if (!UserUtils.getList(contMasterSudo, "email").contains(currentUser.getEmail())) {
+                        Log.echo("Cu Sudo", cont, currentUser.getEmail());
+                        throw new UnauthorizedAccess("User does not match Account");
+                    }
+                } else if (!UserUtils.getList(cont, "email").contains(currentUser.getEmail())) {
+                    Log.echo("Fara Sudo", cont, currentUser.getEmail());
+                    throw new UnauthorizedAccess("User does not match Account");
+                }
+            }
+            return cont;
+        }
+        return null;
+    }
+
+    public Entity getSuperAdminCont(HttpServletRequest req) throws IllegalStateException, IllegalArgumentException {
+        UserService userService = UserServiceFactory.getUserService();
+        User user = userService.getCurrentUser();
+        // Get mailuri clienti setate in aplicatie ca "superAdministrator" ===BEGIN===
+        if (user != null && userService.isUserAdmin()) {
+            Datastore datastore = new Datastore();
+            Query query = new Query("Client");
+            query.setFilter(Query.FilterOperator.EQUAL.of("email", user.getEmail()));
+            query.setKeysOnly();
+            PreparedQuery pQuery = datastore.prepare(query);
+            List<Entity> clients = pQuery.asList(FetchOptions.Builder.withLimit(1));
+            // Get mailuri clienti setate in aplicatie ca "superAdministrator" ===END===
+            if (clients.size() == 0) {
+                Entity superAdmin = new Entity("Cont", AbstractUserType.SuperAdministrator);
+                superAdmin.setProperty("email", user.getEmail());
+                superAdmin.setProperty("tipCont", AbstractUserType.SuperAdministrator);
+                superAdmin.setProperty("numeActual", StringUtils.formatEmail(user.getEmail()));
+                superAdmin.setProperty("prenumeActual", "");
+
+                return superAdmin;
+            }
+        }
+
+
+        if (user == null) {
+            if (Utils.isTask(req)) {
+                Entity task = new Entity("Cont", AbstractUserType.SuperAdministrator);
+                task.setProperty("email", req.getParameter("_emailContCurent"));
+                task.setProperty("tipCont", AbstractUserType.SuperAdministrator);
+                task.setProperty("numeActual", StringUtils.formatEmail(req.getParameter("_emailContCurent")));
+                task.setProperty("prenumeActual", "");
+                return task;
+            } else {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private boolean sendRedirect(String reqUrl) {
         try {
             if (req.getQueryString() != null) {
                 resp.sendRedirect(reqUrl.replace("http:", "https:") + "?" + req.getQueryString());
@@ -222,60 +364,51 @@ public class RouterServlet extends HttpServlet {
         return false;
     }
 
-    private Boolean uniqueInstanceCookie(HttpServletRequest req, Entity contCurent, UserService userService) {
-        List<String> emailsContCurent = UserUtils.getList(contCurent, "email");
-
-        if (contCurent != null && userService.getCurrentUser() != null) {
-            if (!UserUtils.checkTipCont(contCurent, UserType.Secretar) && !UserUtils.checkTipCont(contCurent, UserType.Admin)) {
-                return true;
+    private Boolean uniqueInstanceCookie() {
+        if (!Utils.isTask(req) && isRequiredUniqueAuthCookie() && contCurent != null && currentUser != null) {
+            Text currentCookieValueText = (Text) contCurent.getProperty("cookieValue");
+            String currentCookieValue = null;
+            if (currentCookieValueText != null) {
+                currentCookieValue = currentCookieValueText.getValue();
             }
-            if (emailsContCurent.contains(userService.getCurrentUser().getEmail()) &&
-                    !UserUtils.checkTipCont(contCurent, UserType.SuperAdministrator) &&
-                    !UserUtils.checkTipCont(contCurent, UserType.Candidat)) {
-                Text currentCookieValueText = (Text) contCurent.getProperty("cookieValue");
-                String currentCookieValue = null;
-                if (currentCookieValueText != null) {
-                    currentCookieValue = currentCookieValueText.getValue();
-                }
-                Cookie[] cookies = req.getCookies();
-                if (cookies != null) {
-                    for (Cookie c : cookies) {
-                        if (c.getName().equals("SACSID") || c.getName().equals("ACSID")) {
-                            String cookieValue = c.getValue();
-                            if (currentCookieValue != null && currentCookieValue.equals(cookieValue)) {
-                                return true;
-                            }
-                            Datastore datastore = new Datastore();
-                            if (currentCookieValue != null) {
-                                Integer hashCode = cookieValue.hashCode();
-                                Integer currentHashCode = currentCookieValue.hashCode();
-                                NamespaceManager.set("");
-                                Query q = new Query("InactiveCookie");
-                                q.setFilter(FilterOperator.EQUAL.of("hashCode", hashCode));
-                                PreparedQuery pq = datastore.prepare(q);
-                                List<Entity> inactiveCookies = pq.asList(FetchOptions.Builder.withDefaults());
-                                if (inactiveCookies != null && !inactiveCookies.isEmpty()) {
-                                    for (Entity inactiveCookie : inactiveCookies) {
-                                        String inactiveCookieValue = ((Text) inactiveCookie.getProperty("cookieValue")).getValue();
-                                        if (inactiveCookieValue.equals(cookieValue)) {
-                                            return false;
-                                        }
+            Cookie[] cookies = req.getCookies();
+            if (cookies != null) {
+                for (Cookie c : cookies) {
+                    if (c.getName().equals("SACSID") || c.getName().equals("ACSID")) {
+                        String cookieValue = c.getValue();
+                        if (currentCookieValue != null && currentCookieValue.equals(cookieValue)) {
+                            return true;
+                        }
+                        Datastore datastore = new Datastore();
+                        if (currentCookieValue != null) {
+                            Integer hashCode = cookieValue.hashCode();
+                            Integer currentHashCode = currentCookieValue.hashCode();
+                            NamespaceManager.set("");
+                            Query q = new Query("InactiveCookie");
+                            q.setFilter(Query.FilterOperator.EQUAL.of("hashCode", hashCode));
+                            PreparedQuery pq = datastore.prepare(q);
+                            List<Entity> inactiveCookies = pq.asList(FetchOptions.Builder.withDefaults());
+                            if (inactiveCookies != null && !inactiveCookies.isEmpty()) {
+                                for (Entity inactiveCookie : inactiveCookies) {
+                                    String inactiveCookieValue = ((Text) inactiveCookie.getProperty("cookieValue")).getValue();
+                                    if (inactiveCookieValue.equals(cookieValue)) {
+                                        return false;
                                     }
                                 }
-                                Entity newInactiveCookie = new Entity("InactiveCookie");
-                                newInactiveCookie.setUnindexedProperty("hashCont", contCurent.getKey());
-                                newInactiveCookie.setProperty("hashCode", currentHashCode);
-                                newInactiveCookie.setUnindexedProperty("cookieValue", new Text(currentCookieValue));
-                                datastore.put(newInactiveCookie);
                             }
+                            Entity newInactiveCookie = new Entity("InactiveCookie");
+                            newInactiveCookie.setUnindexedProperty("hashCont", contCurent.getKey());
+                            newInactiveCookie.setProperty("hashCode", currentHashCode);
+                            newInactiveCookie.setUnindexedProperty("cookieValue", new Text(currentCookieValue));
+                            datastore.put(newInactiveCookie);
+                        }
 
-                            try {
-                                Entity dbCont = datastore.get(contCurent.getKey());
-                                dbCont.setProperty("cookieValue", new Text(cookieValue));
-                                contCurent.setProperty("cookieValue", new Text(cookieValue));
-                                datastore.put(dbCont);
-                            } catch (EntityNotFoundException ignored) {
-                            }
+                        try {
+                            Entity dbCont = datastore.get(contCurent.getKey());
+                            dbCont.setProperty("cookieValue", new Text(cookieValue));
+                            contCurent.setProperty("cookieValue", new Text(cookieValue));
+                            datastore.put(dbCont);
+                        } catch (EntityNotFoundException ignored) {
                         }
                     }
                 }
@@ -284,18 +417,22 @@ public class RouterServlet extends HttpServlet {
         return true;
     }
 
-    private void logMemory(Entity cont, UserService userService, HttpServletRequest req) {
-        if (cont != null) {
+    public boolean isRequiredUniqueAuthCookie() {
+        return false;
+    }
+
+    private void logAuthUser() {
+        if (contCurent != null) {
             if (userService.getCurrentUser() != null) {
-                Log.echo(Level.CONFIG, "Utilizator logat autentificat: " + userService.getCurrentUser().getEmail());
+                Log.echo(Level.CONFIG, "Utilizator logat autentificat: " + getCurrentEmail());
             } else if (Utils.isTask(req)) {
-                Log.echo(Level.CONFIG, "Utilizator nelogat autentificat prin task:" + Utils.getCurrentEmail(req));
+                Log.echo(Level.CONFIG, "Utilizator nelogat autentificat prin task:" + getCurrentEmail());
             } else {
-                Log.echo(Level.SEVERE, "Utilizator nelogat autentificat: " + Utils.getCurrentEmail(req));
+                Log.echo(Level.SEVERE, "Utilizator nelogat autentificat: " + getCurrentEmail());
             }
         } else {
             if (userService.getCurrentUser() != null) {
-                Log.echo(Level.CONFIG, "Utilizator logat neautentificat: " + userService.getCurrentUser().getEmail());
+                Log.echo(Level.CONFIG, "Utilizator logat neautentificat: " + getCurrentEmail());
             }
             Log.echo(Level.CONFIG, "Utilizator nelogat.");
         }
@@ -304,7 +441,7 @@ public class RouterServlet extends HttpServlet {
     }
 
     @SuppressWarnings("unused")
-    private void checkAjax(IController controller, HttpServletRequest req) throws InvalidField {
+    private void checkAjax(AbstractIController controller, HttpServletRequest req) throws InvalidField {
         if (req.getHeader("X-Requested-With") == null
                 || !req.getHeader("X-Requested-With").equalsIgnoreCase("XMLHttpRequest")) {
             throw new InvalidField(InvalidField.i18n("admin.backend.ajaxException", "name", controller.getClass().getSimpleName()));
@@ -312,63 +449,7 @@ public class RouterServlet extends HttpServlet {
 
     }
 
-    /**
-     * Returns the IController instance for the request
-     *
-     * @param req
-     * @return
-     * @throws UnauthorizedAccess
-     */
-    private IController getController(HttpServletRequest req) throws UnauthorizedAccess {
-
-        String controllerClassName = req.getPathInfo();
-        if (controllerClassName == null) {
-            controllerClassName = "";
-        }
-        if (!controllerClassName.isEmpty() && controllerClassName.charAt(0) == '/') {
-            controllerClassName = controllerClassName.substring(1);
-        }
-        controllerClassName = controllerClassName.replace('/', '.');
-
-        IController controller = null;
-        if (!controllerClassName.isEmpty()) {
-            controller = this.getController(controllerClassName);
-            // if the controller with that class name wasn't found...
-            if (controller == null) {
-                throw new UnauthorizedAccess(InvalidField.i18n("admin.backend.controllerNotFound", "name", controllerClassName)); // default to the error controller
-            }
-        } else {
-            //controller = new ro.adma.index();
-        }
-        return controller;
-    }
-
-    /**
-     * Returns the string-specified controller instance
-     *
-     * @param className
-     * @return
-     */
-    private IController getController(String className) {
-        Class<?> controllerClass;
-        try {
-            Log.echo(className);
-            controllerClass = Class.forName(this.getClass().getPackage().getName() + ".controller." + className);
-            if (!IController.class.isAssignableFrom(controllerClass)) {
-                return null;
-            }
-            return (IController) controllerClass.newInstance();
-
-        } catch (ClassNotFoundException e) {
-            return null;
-        } catch (InstantiationException e) {
-            return null;
-        } catch (IllegalAccessException e) {
-            return null;
-        }
-    }
-
-    private void checkRole(IController controller, Entity cont) throws UnauthorizedAccess, InvalidField {
+    private void checkRole(AbstractIController controller, Entity cont) throws UnauthorizedAccess, InvalidField {
 
         RequiredType reqType = controller.getClass().getAnnotation(RequiredType.class);
         if (reqType == null) {
@@ -384,10 +465,10 @@ public class RouterServlet extends HttpServlet {
             throw new UnauthorizedAccess("[Cont not found] " + email);
         }
 
-        UserType[] roles = reqType.value();
+        String[] roles = reqType.value();
 
         boolean found = false;
-        for (UserType ut : roles) {
+        for (String ut : roles) {
             if (UserUtils.checkTipCont(cont, ut)) {
                 found = true;
             }
@@ -397,25 +478,12 @@ public class RouterServlet extends HttpServlet {
         }
     }
 
-    @SuppressWarnings("unused")
-    private static void filterDOS(HttpServletRequest req) throws UnauthorizedAccess {
-        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yy HH:mm:ss");
-        UserService userService = UserServiceFactory.getUserService();
-        if (userService.getCurrentUser() != null) {
-            // is an user logged in
-            userService.getCurrentUser().getEmail();
-            MemcacheService syncCache = MemcacheServiceFactory.getMemcacheService();
-            syncCache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.SEVERE));
-            long requests = syncCache.increment(userService.getCurrentUser().getEmail() + sdf.format(new Date()),
-                    1l,
-                    0l);
-            // System.out.println(userService.getCurrentUser().getEmail()+sdf.format(new Date())+" --> "+requests);
-            if (requests > 1) {
-                // System.out.println("DOS"+requests);
-                // throw new UnauthorizedAccess("");
-            }
-        } else {
-            // make the same with an ip adress;
+    public boolean isUserAdmin() {
+        if (currentUser == null) {
+            return false;
         }
+        return userService.isUserAdmin();
     }
+
+
 }

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package ro.appenigne.web.framework.annotation;
 
@@ -8,14 +8,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * @author Bogdan Nourescu
- * 
- */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RequiredLogIn {
-	
-	boolean value() default false;
-	
+
+    boolean value() default false;
+
 }
