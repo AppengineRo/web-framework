@@ -15,29 +15,23 @@ public class ServletRoutingUtils {
         if (urlPatterns.get() == null) {
             writeUrlPatterns();
         }
-        String[] folders = parseUrlPattern(request.getRequestURI());
-        //System.out.println(Arrays.toString(folders));
+        String[] requestUriParts = parseUrlPattern(request.getRequestURI());
 
         LinkedHashMap<String[], String> urlPatternMap = urlPatterns.get();
-        for (int j = folders.length; j >= 0; j--) {
+        for (int i = requestUriParts.length; i >= 0; i--) {
             for (Map.Entry<String[], String> urlPatternEntry : urlPatternMap.entrySet()) {
                 String[] urlPattern = urlPatternEntry.getKey();
-
-                //System.out.println("scanning: " + urlPatternEntry.getValue() + "   " + Arrays.toString(urlPattern) + " " + urlPattern.length + " " + folders.length);
-                if (urlPattern.length != j) {
+                if (urlPattern.length != i) {
                     continue;
                 }
                 boolean isGood = true;
-                for (int i = 0; i < urlPattern.length; i++) {
-                    if (!isVariable(urlPattern[i]) && !urlPattern[i].equals(folders[i])) {
+                for (int j = 0; j < urlPattern.length; j++) {
+                    if (!isVariable(urlPattern[j]) && !urlPattern[j].equals(requestUriParts[j])) {
                         isGood = false;
                         break;
                     }
                 }
                 if (isGood) {
-                    System.out.println("found: " + urlPatternEntry.getValue());
-                    System.out.println("request: " + Arrays.toString(folders));
-                    System.out.println("urlPattern: " + Arrays.toString(urlPattern));
                     Class<?> controllerClass = Class.forName(urlPatternEntry.getValue());
                     return controllerClass.newInstance();
                 }
@@ -66,7 +60,6 @@ public class ServletRoutingUtils {
             }
         }
         if (startIndex != 0 || endIndex != split.length) {
-            //System.out.print("remove empty strings");
             split = Arrays.copyOfRange(split, startIndex, endIndex);
         }
         return split;
