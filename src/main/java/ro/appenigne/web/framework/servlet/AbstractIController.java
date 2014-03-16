@@ -20,6 +20,7 @@ import ro.appenigne.web.framework.exception.InvalidField;
 import ro.appenigne.web.framework.exception.SendRedirect;
 import ro.appenigne.web.framework.exception.UnauthorizedAccess;
 import ro.appenigne.web.framework.request.FilteredRequest;
+import ro.appenigne.web.framework.request.IgnoringArrayLikeParamNameRequest;
 import ro.appenigne.web.framework.request.TrimRequest;
 import ro.appenigne.web.framework.utils.*;
 
@@ -72,9 +73,9 @@ public abstract class AbstractIController {
 
     public void run(HttpServletRequest req, HttpServletResponse resp, Entity contCurent) {
         try {
+            initHttp(req, resp);
             preInit();
             this.contCurent = contCurent;
-            initHttp(req, resp);
             this.userService = UserServiceFactory.getUserService();
             this.currentUser = userService.getCurrentUser();
             getCurrentEmail();
@@ -98,18 +99,15 @@ public abstract class AbstractIController {
         initHttpResp(resp);
     }
 
+    /**
+     * By default checks the annotation XssCheck and creates a filtered request of<br />
+     * a TrimmedRequest and IgnoringArrayLikeParamNameRequest
+     */
     public void initHttpReq(HttpServletRequest req) {
         XssCheck xssCheck = this.getClass().getAnnotation(XssCheck.class);
-        if (xssCheck != null && !xssCheck.value()) {
-            if (req instanceof TrimRequest) {
-                this.req = req;
-            } else {
-                this.req = new TrimRequest(req);
-            }
-        } else {
-            HttpServletRequest filteredReq = new FilteredRequest(req);
-            initHttp(filteredReq, resp);
-            this.req = filteredReq;
+        this.req = new TrimRequest(new IgnoringArrayLikeParamNameRequest(req));
+        if (xssCheck == null || xssCheck.value()) {
+            this.req = new FilteredRequest(req);
         }
     }
 
@@ -438,8 +436,9 @@ public abstract class AbstractIController {
             throw new InvalidField(InvalidField.i18n("admin.backend.ajaxException", "name", controller.getClass().getSimpleName()));
         }
     }
+
     private boolean isAjax() {
-       return req.getHeader("X-Requested-With") != null && req.getHeader("X-Requested-With").equalsIgnoreCase("XMLHttpRequest");
+        return req.getHeader("X-Requested-With") != null && req.getHeader("X-Requested-With").equalsIgnoreCase("XMLHttpRequest");
     }
 
     private void checkRole(AbstractIController controller, Entity cont) throws UnauthorizedAccess, InvalidField {

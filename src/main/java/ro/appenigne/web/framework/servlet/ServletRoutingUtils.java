@@ -1,6 +1,7 @@
 package ro.appenigne.web.framework.servlet;
 
-import javax.servlet.http.HttpServletRequest;
+import ro.appenigne.web.framework.request.AlterableRequest;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.*;
@@ -11,7 +12,7 @@ public class ServletRoutingUtils {
     private static final AtomicReference<LinkedHashMap<String[], String>> urlPatterns = new AtomicReference<>();
     private static final String PREFIX = "url:";
 
-    public static Object getController(HttpServletRequest request) throws UnsupportedEncodingException, ClassNotFoundException, IllegalAccessException, InstantiationException {
+    public static Object getController(AlterableRequest request) throws UnsupportedEncodingException, ClassNotFoundException, IllegalAccessException, InstantiationException {
         if (urlPatterns.get() == null) {
             writeUrlPatterns();
         }
@@ -32,6 +33,11 @@ public class ServletRoutingUtils {
                     }
                 }
                 if (isGood) {
+                    for (int j = 0; j < urlPattern.length; j++) {
+                        if (isVariable(urlPattern[j])) {
+                            request.addParam(getVariableName(urlPattern[j]), requestUriParts[j]);
+                        }
+                    }
                     Class<?> controllerClass = Class.forName(urlPatternEntry.getValue());
                     return controllerClass.newInstance();
                 }
@@ -42,6 +48,10 @@ public class ServletRoutingUtils {
 
     private static boolean isVariable(String str) {
         return str.startsWith("{") && str.endsWith("}");
+    }
+
+    private static String getVariableName(String varName) {
+        return varName.substring(1, varName.length() - 1);
     }
 
     private static String[] parseUrlPattern(String urlPattern) throws UnsupportedEncodingException {
