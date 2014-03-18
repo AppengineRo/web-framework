@@ -112,7 +112,7 @@ public abstract class AbstractIController {
         XssCheck xssCheck = this.getClass().getAnnotation(XssCheck.class);
         this.req = new TrimRequest(new IgnoringArrayLikeParamNameRequest(req));
         if (xssCheck == null || xssCheck.value()) {
-            this.req = new FilteredRequest(req);
+            this.req = new FilteredRequest(this.req);
         }
     }
 
