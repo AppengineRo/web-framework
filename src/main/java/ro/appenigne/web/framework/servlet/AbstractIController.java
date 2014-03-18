@@ -416,7 +416,7 @@ public abstract class AbstractIController {
         return false;
     }
 
-    private void logAuthInfo() {
+    public void logAuthInfo() {
         if (contCurent != null) {
             if (userService.getCurrentUser() != null) {
                 Log.c("Utilizator logat autentificat: " + getCurrentEmail());
