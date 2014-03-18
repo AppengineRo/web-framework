@@ -75,7 +75,7 @@ public abstract class AbstractIController {
         try {
             initHttp(req, resp);
             preInit();
-            this.contCurent = contCurent;
+            setContCurent(contCurent);
             this.userService = UserServiceFactory.getUserService();
             this.currentUser = userService.getCurrentUser();
             getCurrentEmail();
@@ -91,6 +91,11 @@ public abstract class AbstractIController {
             }
         } catch (ExecutionException | InterruptedException e) {
             Log.s(e);
+        }
+    }
+    public void setContCurent(Entity contCurent){
+        if (this.contCurent == null || contCurent != null) {
+            this.contCurent = contCurent;
         }
     }
 
@@ -152,7 +157,7 @@ public abstract class AbstractIController {
         String queryLink = (req.getQueryString() != null) ? "/?" + req.getQueryString() : "/";
         try {
             try {
-                contCurent = getCont(req.getParameter(_hashContCurentParamName));
+                setContCurent(getCont(req.getParameter(_hashContCurentParamName)));
                 RequiredLogIn reqLogIn = this.getClass().getAnnotation(RequiredLogIn.class);
 
                 if (reqLogIn != null && reqLogIn.value()) {
@@ -270,10 +275,10 @@ public abstract class AbstractIController {
         try {
             keyCont = KeyFactory.stringToKey(_hashContCurent);
         } catch (NullPointerException npe) {
-            Log.d(npe);
+            //Log.d(npe);
             return null;
         } catch (IllegalArgumentException iae) {
-            Log.d(iae);
+            //Log.d(iae);
             return null;
         }
 
