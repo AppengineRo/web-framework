@@ -13,11 +13,11 @@ import java.io.IOException;
 public abstract class IControllerImpl extends HttpServlet {
 
     @Override
-    protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void service(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
         new AbstractIController() {
             @Override
             public void execute() throws Exception {
-                IControllerImpl.this.execute(req, resp);
+                IControllerImpl.this.execute(request, response);
             }
 
             @Override
@@ -28,7 +28,7 @@ public abstract class IControllerImpl extends HttpServlet {
             @Override
             public void logAuthInfo() {
             }
-        }.run(req, resp, null);
+        }.run(request, response, null);
     }
 
     public abstract void execute(HttpServletRequest req, HttpServletResponse resp) throws Exception;

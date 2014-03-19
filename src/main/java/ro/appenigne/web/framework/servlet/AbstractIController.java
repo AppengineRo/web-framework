@@ -475,6 +475,7 @@ public abstract class AbstractIController {
         }
     }
 
+    @SuppressWarnings("unused")
     public boolean isUserAdmin() {
         if (currentUser == null) {
             return false;
