@@ -1,6 +1,7 @@
 package ro.appenigne.web.framework.servlet;
 
 import ro.appenigne.web.framework.request.AlterableRequest;
+import ro.appenigne.web.framework.utils.Log;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -19,28 +20,26 @@ public class ServletRoutingUtils {
         String[] requestUriParts = parseUrlPattern(request.getRequestURI());
 
         LinkedHashMap<String[], String> urlPatternMap = urlPatterns.get();
-        for (int i = requestUriParts.length; i >= 0; i--) {
-            for (Map.Entry<String[], String> urlPatternEntry : urlPatternMap.entrySet()) {
-                String[] urlPattern = urlPatternEntry.getKey();
-                if (urlPattern.length != i) {
-                    continue;
+        for (Map.Entry<String[], String> urlPatternEntry : urlPatternMap.entrySet()) {
+            String[] urlPattern = urlPatternEntry.getKey();
+            if (urlPattern.length > requestUriParts.length) {
+                continue;
+            }
+            boolean isGood = true;
+            for (int j = 0; j < urlPattern.length; j++) {
+                if (!isVariable(urlPattern[j]) && !urlPattern[j].equals(requestUriParts[j])) {
+                    isGood = false;
+                    break;
                 }
-                boolean isGood = true;
+            }
+            if (isGood) {
                 for (int j = 0; j < urlPattern.length; j++) {
-                    if (!isVariable(urlPattern[j]) && !urlPattern[j].equals(requestUriParts[j])) {
-                        isGood = false;
-                        break;
+                    if (isVariable(urlPattern[j])) {
+                        request.addParam(getVariableName(urlPattern[j]), requestUriParts[j]);
                     }
                 }
-                if (isGood) {
-                    for (int j = 0; j < urlPattern.length; j++) {
-                        if (isVariable(urlPattern[j])) {
-                            request.addParam(getVariableName(urlPattern[j]), requestUriParts[j]);
-                        }
-                    }
-                    Class<?> controllerClass = Class.forName(urlPatternEntry.getValue());
-                    return controllerClass.newInstance();
-                }
+                Class<?> controllerClass = Class.forName(urlPatternEntry.getValue());
+                return controllerClass.newInstance();
             }
         }
         return null;
@@ -83,6 +82,33 @@ public class ServletRoutingUtils {
                 newUrlPatterns.put(parseUrlPattern(propName.substring(PREFIX.length())), System.getProperty(propName));
             }
         }
+
+        List<Map.Entry<String[], String>> entries = new ArrayList<>(newUrlPatterns.entrySet());
+        Collections.sort(entries, new Comparator<Map.Entry<String[], String>>() {
+            public int compare(Map.Entry<String[], String> a, Map.Entry<String[], String> b) {
+                if (a.getKey().length != b.getKey().length) {
+                    return -a.getKey().length + b.getKey().length;
+                }
+                for (int i = 0; i < a.getKey().length; i++) {
+                    boolean isVariableA = isVariable(a.getKey()[i]);
+                    boolean isVariableB = isVariable(b.getKey()[i]);
+                    if (isVariableA && !isVariableB) {
+                        return 1;
+                    }
+                    if (!isVariableA && isVariableB) {
+                        return -1;
+                    }
+                }
+                return 0;
+            }
+        });
+        LinkedHashMap<String[], String> sortedMap = new LinkedHashMap<>();
+        for (Map.Entry<String[], String> entry : entries) {
+            sortedMap.put(entry.getKey(), entry.getValue());
+
+        }
+        newUrlPatterns = sortedMap;
+        Log.w(sortedMap.keySet());
         urlPatterns.compareAndSet(null, newUrlPatterns);
     }
 

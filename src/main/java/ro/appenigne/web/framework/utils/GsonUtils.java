@@ -67,7 +67,7 @@ public class GsonUtils {
                     @Override
                     public Entity deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) {
                         Key key = null;
-                        HashMap<String, Object> propertyMap = null;
+                        HashMap<String, Object> propertyMap = new HashMap<>();
                         for (Map.Entry<String, JsonElement> set : json.getAsJsonObject().entrySet()) {
                             if (set.getKey().equals("key")) {
                                 key = context.deserialize(set.getValue(), Key.class);
@@ -82,7 +82,7 @@ public class GsonUtils {
                         for (Map.Entry<String, Object> prop : propertyMap.entrySet()) {
                             try {
                                 entity.setProperty(prop.getKey(), prop.getValue());
-                            } catch (IllegalArgumentException e) {
+                            } catch (IllegalArgumentException ignored) {
 
                             }
                         }
@@ -199,11 +199,7 @@ public class GsonUtils {
             return map;
         }
     }
-    /**
-     * @param oldKey
-     * @return Key
-     * @throws JsonSyntaxException
-     */
+
     public static Key convertKey(String oldKey) throws JsonSyntaxException {
         if ((oldKey == null) || oldKey.isEmpty() || oldKey.equals("null")) {
             return null;
