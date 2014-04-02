@@ -20,7 +20,6 @@ public class Datastore implements DatastoreService {
     private ArrayList<Entity> postPutEntities = new ArrayList<>();
     private LinkedHashMap<Key, Entity> cacheEntities = new LinkedHashMap<>();
     private LinkedHashMap<String, ArrayList<IDatastorePostPut>> postPuts = new LinkedHashMap<>();
-    ;
     private LinkedHashMap<String, ArrayList<IDatastorePrePut>> prePuts = new LinkedHashMap<>();
 
     public Datastore() {

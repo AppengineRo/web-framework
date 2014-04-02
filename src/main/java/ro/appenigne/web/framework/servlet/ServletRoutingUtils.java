@@ -108,7 +108,6 @@ public class ServletRoutingUtils {
 
         }
         newUrlPatterns = sortedMap;
-        Log.w(sortedMap.keySet());
         urlPatterns.compareAndSet(null, newUrlPatterns);
     }
 

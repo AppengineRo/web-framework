@@ -41,6 +41,37 @@ public class EntityUtils {
         return getAsList(entity, prop, Key.class);
     }
 
+    /**
+     * Returns a set with the Strings found<br />
+     * Does not return null
+     */
+    public static Set<String> getAsStringSet(Entity entity, String prop) {
+        Set<String> initialList = getAsSet(entity, prop, String.class);
+        Set<String> notEmptyList = new LinkedHashSet<>();
+        for(String s:initialList){
+            if(!s.isEmpty()){
+                notEmptyList.add(s);
+            }
+        }
+        return notEmptyList;
+    }
+
+    /**
+     * Returns a set with the Longs found<br />
+     * Does not return null
+     */
+    public static Set<Long> getAsLongSet(Entity entity, String prop) {
+        return getAsSet(entity, prop, Long.class);
+    }
+
+    /**
+     * Returns a set with the Keys found<br />
+     * Does not return null
+     */
+    public static Set<Key> getAsKeySet(Entity entity, String prop) {
+        return getAsSet(entity, prop, Key.class);
+    }
+
     public static <T> List<T> getAsList(Entity entity, String prop, Class<T> type) {
         List<T> list = new ArrayList<>();
         if (entity != null) {

@@ -89,7 +89,7 @@ public abstract class AbstractIController {
             } catch (IOException e) {
                 Log.s(e);
             }
-        } catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException | InterruptedException | IOException e) {
             Log.s(e);
         }
     }
@@ -149,8 +149,19 @@ public abstract class AbstractIController {
      */
     public abstract void execute() throws Exception;
 
-    private void finish() throws ExecutionException, InterruptedException {
+    private void finish() throws ExecutionException, InterruptedException, IOException {
         datastore.commit();
+        /*try {
+            resp.getWriter().flush();
+        } catch(Exception e){
+            Log.d(e);
+        }
+        try {
+            resp.getOutputStream().flush();
+        } catch(Exception e){
+            Log.d(e);
+        }
+        Log.s("a trecut pe aici");*/
     }
 
     public void preExecute() {
@@ -236,7 +247,6 @@ public abstract class AbstractIController {
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             } catch (IllegalStateException e) {
                 Log.s(e);
-                resp.setContentType("text/plain; charset=UTF-8");
                 this.preExecute();
             } catch (ApiProxy.OverQuotaException e) {
                 Log.c(e);
