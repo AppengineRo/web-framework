@@ -114,8 +114,8 @@ public class Log {
             }
         }
         if (obj.length == 1) {
-            if (obj[0] instanceof Exception) {
-                Exception e = (Exception) obj[0];
+            if(obj[0] instanceof Throwable) {
+                Throwable e = (Throwable) obj[0];
                 log.log(level, e.getMessage(), e);
             } else if (obj[0] instanceof String) {
                 echo(log, level, (String) obj[0]);
@@ -133,8 +133,8 @@ public class Log {
             if (exceptionFoud) {
                 //print them one by one
                 for (Object o : obj) {
-                    if (o instanceof Exception) {
-                        Exception e = (Exception) o;
+                    if(o instanceof Throwable) {
+                        Throwable e = (Throwable) o;
                         log.log(level, e.getMessage(), e);
                     } else if (o instanceof String) {
                         echo(log, level, (String) o);
