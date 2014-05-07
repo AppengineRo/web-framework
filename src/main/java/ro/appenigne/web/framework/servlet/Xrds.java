@@ -27,7 +27,7 @@ public class Xrds extends AbstractIController {
                 + "		<Service priority=\"1\">\r\n"
                 + "			<Type>http://specs.openid.net/auth/2.0/return_to</Type>\r\n"
                 + "			<URI>https://"
-                + req.getRequestURL().substring(0, req.getRequestURL().indexOf("/",8))
+                + req.getRequestURL().substring(0, req.getRequestURL().indexOf("/", 8))
                 + "/_ah/openid_verify</URI>\r\n"
                 + "		</Service>\r\n"
                 + "	</XRD>\r\n"
