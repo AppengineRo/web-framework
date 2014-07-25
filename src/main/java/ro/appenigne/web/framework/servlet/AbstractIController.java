@@ -81,8 +81,13 @@ public abstract class AbstractIController {
             getCurrentEmail();
             createDatastore();
             createDatastoreCallbacks();
-            preExecute();
+            boolean success = preExecute();
             finish();
+            if(success){
+                onSuccess();
+            } else {
+                onError();
+            }
         } catch (SendRedirect sendRedirect) {
             try {
                 resp.sendRedirect(sendRedirect.getMessage());
@@ -92,6 +97,14 @@ public abstract class AbstractIController {
         } catch (ExecutionException | InterruptedException | IOException e) {
             Log.s(e);
         }
+    }
+
+    public void onSuccess() {
+
+    }
+
+    public void onError() {
+
     }
     public void setContCurent(Entity contCurent){
         if (this.contCurent == null || contCurent != null) {
@@ -164,7 +177,7 @@ public abstract class AbstractIController {
         Log.s("a trecut pe aici");*/
     }
 
-    public void preExecute() {
+    public boolean preExecute() {
         String queryLink = (req.getQueryString() != null) ? "/?" + req.getQueryString() : "/";
         try {
             try {
@@ -182,6 +195,7 @@ public abstract class AbstractIController {
                 this.logAuthInfo();
                 execute();
                 resp.setHeader("appV", SystemProperty.applicationVersion.get());
+                return true;
             } catch (UnauthorizedAccess | InvalidAuthCookie e) {
                 Log.c(e);
                 if (!isAjax()) {
@@ -276,6 +290,7 @@ public abstract class AbstractIController {
         } catch (Exception e) {
             Log.s(e);
         }
+        return false;
     }
 
     public Entity getCont(String _hashContCurent) throws EntityNotFoundException, UnauthorizedAccess {
