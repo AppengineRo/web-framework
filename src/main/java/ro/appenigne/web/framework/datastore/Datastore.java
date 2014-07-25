@@ -6,6 +6,7 @@ import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -21,13 +22,13 @@ public class Datastore implements DatastoreService {
     private LinkedHashMap<Key, Entity> cacheEntities = new LinkedHashMap<>();
     private LinkedHashMap<String, ArrayList<IDatastorePostPut>> postPuts = new LinkedHashMap<>();
     private LinkedHashMap<String, ArrayList<IDatastorePrePut>> prePuts = new LinkedHashMap<>();
-
-    public Datastore() {
+    private HttpServletRequest req = null;
+    public Datastore(HttpServletRequest req) {
         this.datastore = DatastoreServiceFactory.getDatastoreService();
         this.asyncDatastoreService = DatastoreServiceFactory.getAsyncDatastoreService();
         memcacheService = MemcacheServiceFactory.getMemcacheService();
         memcacheService.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.SEVERE));
-
+        this.req = req;
         /*String datastoreCallbacksClass = System.getProperty("datastoreCallbacksClass");
         if (datastoreCallbacksClass != null && !datastoreCallbacksClass.isEmpty()) {
             try {
@@ -114,7 +115,7 @@ public class Datastore implements DatastoreService {
             datastoreCallbacks.addAll(prePuts.get(null));
         }
         for (IDatastorePrePut dc : datastoreCallbacks) {
-            dc.prePut(entity);
+            dc.prePut(entity, req);
         }
     }
 
@@ -128,7 +129,7 @@ public class Datastore implements DatastoreService {
             datastoreCallbacks.addAll(postPuts.get(null));
         }
         for (IDatastorePostPut dc : datastoreCallbacks) {
-            dc.postPut(entity);
+            dc.postPut(entity, req);
         }
     }
 

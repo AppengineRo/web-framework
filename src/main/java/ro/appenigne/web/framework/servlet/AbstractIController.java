@@ -128,7 +128,7 @@ public abstract class AbstractIController {
     }
 
     public void createDatastore() {
-        this.datastore = new Datastore();
+        this.datastore = new Datastore(this.req);
     }
 
     @SuppressWarnings("unused")
@@ -200,9 +200,7 @@ public abstract class AbstractIController {
                         blobKey = new BlobKey(req.getParameter("_blobKey"));
                     }
                     Utils.importFeedback(blobKey,
-                            req.getParameter("importType"),
-                            req.getParameter("_rowNr"),
-                            e.getMessage());
+                            e.getMessage(), req);
                 } else {
                     //resp.reset();
                     resp.setContentType("text/plain; charset=UTF-8");
@@ -327,7 +325,6 @@ public abstract class AbstractIController {
         User user = userService.getCurrentUser();
         // Get mailuri clienti setate in aplicatie ca "superAdministrator" ===BEGIN===
         if (user != null && userService.isUserAdmin()) {
-            Datastore datastore = new Datastore();
             Query query = new Query("Client");
             query.setFilter(Query.FilterOperator.EQUAL.of("email", user.getEmail()));
             query.setKeysOnly();
@@ -384,7 +381,6 @@ public abstract class AbstractIController {
                         if (currentCookieValue != null && currentCookieValue.equals(cookieValue)) {
                             return true;
                         }
-                        Datastore datastore = new Datastore();
                         if (currentCookieValue != null) {
                             Integer hashCode = cookieValue.hashCode();
                             Integer currentHashCode = currentCookieValue.hashCode();

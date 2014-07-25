@@ -290,7 +290,7 @@ public class FormValidate {
     }
 
     private static boolean queryUnique(String kind, Key key, String name, Object value) {
-        Datastore datastore = new Datastore();
+        Datastore datastore = new Datastore(null);
         NamespaceManager.set(key.getNamespace());
         Query q = new Query(kind);
         q.setFilter(FilterOperator.EQUAL.of(name, value));
