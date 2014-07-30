@@ -81,12 +81,14 @@ public abstract class AbstractIController {
             getCurrentEmail();
             createDatastore();
             createDatastoreCallbacks();
-            boolean success = preExecute();
+            String success = preExecute();
             finish();
-            if(success){
+            if(success.equals("Success")){
                 onSuccess();
-            } else {
+            } else if(success.equals( "Error")) {
                 onError();
+            } else {
+                onWarning();
             }
         } catch (SendRedirect sendRedirect) {
             try {
@@ -104,6 +106,9 @@ public abstract class AbstractIController {
     }
 
     public void onError() {
+
+    }
+    public void onWarning() {
 
     }
     public void setContCurent(Entity contCurent){
@@ -177,7 +182,7 @@ public abstract class AbstractIController {
         Log.s("a trecut pe aici");*/
     }
 
-    public boolean preExecute() {
+    public String preExecute() {
         String queryLink = (req.getQueryString() != null) ? "/?" + req.getQueryString() : "/";
         try {
             try {
@@ -195,7 +200,7 @@ public abstract class AbstractIController {
                 this.logAuthInfo();
                 execute();
                 resp.setHeader("appV", SystemProperty.applicationVersion.get());
-                return true;
+                return "Success";
             } catch (UnauthorizedAccess | InvalidAuthCookie e) {
                 Log.c(e);
                 if (!isAjax()) {
@@ -206,6 +211,7 @@ public abstract class AbstractIController {
                     resp.getWriter().print(e.getMessage());
                     resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 }
+                return "Error";
             } catch (InvalidField e) {
                 Log.c(e);
                 if (Utils.isTask(req)) {
@@ -215,58 +221,32 @@ public abstract class AbstractIController {
                     }
                     Utils.importFeedback(blobKey,
                             e.getMessage(), req);
+                    return "Warning";
                 } else {
                     //resp.reset();
                     resp.setContentType("text/plain; charset=UTF-8");
                     resp.getWriter().print(e.getMessage());
                     resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    return "Warning";
                 }
-            } /*catch (Notification e) {
-                resp.setContentType("text/plain; charset=UTF-8");
-                log.log(Level.SEVERE, e.getClass().getSimpleName(), e);
-                resp.reset();
-                resp.getWriter().print(e.getMessage());
-                Queue queue = QueueFactory.getQueue("bulk");
-                TaskOptions taskOptions = TaskOptions.Builder.withUrl("/do/bug/SalveazaBug");
-                taskOptions.param("_hashContCurent", KeyFactory.keyToString(cont.getKey()));
-                taskOptions.param("_emailContCurent", Utils.getCurrentEmail(req));
-                taskOptions.param("subject", "JAVA Notification ERROR");
-                taskOptions.param("message", e.getMessage());
-                taskOptions.param("jsError", "true");
-                StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);
-                e.printStackTrace(pw);
-                taskOptions.param("html", sw.toString().replaceAll("\n", "<br />"));
-                queue.add(taskOptions);
-            } catch (SilentNotification e) {
-                Queue queue = QueueFactory.getQueue("bulk");
-                TaskOptions taskOptions = TaskOptions.Builder.withUrl("/do/bug/SalveazaBug");
-                taskOptions.param("_hashContCurent", KeyFactory.keyToString(cont.getKey()));
-                taskOptions.param("_emailContCurent", Utils.getCurrentEmail(req));
-                taskOptions.param("subject", "JAVA Notification ERROR");
-                taskOptions.param("message", e.getMessage());
-                taskOptions.param("jsError", "true");
-                StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);
-                e.printStackTrace(pw);
-                taskOptions.param("html", sw.toString().replaceAll("\n", "<br />"));
-                queue.add(taskOptions);
-            }*/ catch (EntityNotFoundException | ApiProxy.CapabilityDisabledException e) {
+            } catch (EntityNotFoundException | ApiProxy.CapabilityDisabledException e) {
                 Log.s(e);
                 resp.setContentType("text/plain; charset=UTF-8");
                 resp.reset();
                 resp.getWriter().print(e.getMessage());
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return "Error";
             } catch (IllegalStateException e) {
                 Log.s(e);
                 this.preExecute();
             } catch (ApiProxy.OverQuotaException e) {
-                Log.c(e);
+                Log.w(e);
             } catch (DeadlineExceededException e) {
                 Log.s(e);
                 resp.reset();
                 resp.getWriter().print("admin.backend.deadlineExceededException");
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return "Error";
             } catch (OutOfMemoryError e) {
                 Log.s(e);
                 resp.reset();
@@ -276,21 +256,24 @@ public abstract class AbstractIController {
                     resp.getWriter().print("admin.backend.outOfMemoryError");
                 }
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return "Error";
             } catch (DatastoreFailureException e) {
                 Log.s(e);
                 resp.reset();
                 resp.getWriter().print(e.getMessage());
-                resp.setStatus(HttpServletResponse.SC_ACCEPTED);
+                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return "Error";
             } catch (Exception e) {
                 Log.s(e);
                 resp.reset();
                 resp.getWriter().print(e.getMessage());
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return "Error";
             }
         } catch (Exception e) {
             Log.s(e);
         }
-        return false;
+        return "Error";
     }
 
     public Entity getCont(String _hashContCurent) throws EntityNotFoundException, UnauthorizedAccess {
