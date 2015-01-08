@@ -1,7 +1,6 @@
 package ro.appenigne.web.framework.utils;
 
 import com.google.appengine.api.NamespaceManager;
-import com.google.appengine.api.blobstore.BlobInfo;
 import com.google.appengine.api.blobstore.BlobKey;
 import com.google.appengine.api.datastore.*;
 import com.google.appengine.api.datastore.Query.CompositeFilterOperator;
@@ -14,10 +13,8 @@ import com.google.apphosting.api.ApiProxy;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import ro.appenigne.web.framework.datastore.Datastore;
-import ro.appenigne.web.framework.exception.InvalidField;
 import ro.appenigne.web.framework.form.FormValidate;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -388,6 +385,9 @@ public class Utils {
 
     public static boolean isAppVersion(String version) {
         return SystemProperty.applicationVersion.get().contains(version);
+    }
+    public static String getAppModule() {
+        return ApiProxy.getCurrentEnvironment().getModuleId();
     }
 
 

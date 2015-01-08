@@ -199,7 +199,9 @@ public abstract class AbstractIController {
                 }
                 this.logAuthInfo();
                 execute();
-                resp.setHeader("appV", SystemProperty.applicationVersion.get());
+                if ("default".equals(Utils.getAppModule())) {
+                    resp.setHeader("appV", SystemProperty.applicationVersion.get());
+                }
                 return "Success";
             } catch (UnauthorizedAccess | InvalidAuthCookie e) {
                 Log.c(e);
