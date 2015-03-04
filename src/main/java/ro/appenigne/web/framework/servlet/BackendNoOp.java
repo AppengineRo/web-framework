@@ -2,11 +2,19 @@ package ro.appenigne.web.framework.servlet;
 
 import ro.appenigne.web.framework.annotation.UrlPattern;
 
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
 @UrlPattern({"/_ah/start", "/_ah/stop"})
-public class BackendNoOp extends AbstractIController {
+public class BackendNoOp extends HttpServlet {
 
     @Override
-    public void execute() throws Exception {
-
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    }
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
     }
 }

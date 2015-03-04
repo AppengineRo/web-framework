@@ -4,6 +4,10 @@ package ro.appenigne.web.framework.servlet;
 import ro.appenigne.web.framework.annotation.UrlPattern;
 import ro.appenigne.web.framework.utils.Log;
 
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.logging.Level;
 
@@ -16,10 +20,10 @@ import java.util.logging.Level;
  * Pe scurt yahoo + inca cateva vor sa verifice ceva legat de OpenID
  */
 @UrlPattern("/_ah/xrds")
-public class Xrds extends AbstractIController {
+public class Xrds extends HttpServlet {
 
     @Override
-    public void execute() throws IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         Log.echo(Level.CONFIG, "xrds");
         String response = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
                 + "<xrds:XRDS xmlns:xrds=\"xri://$xrds\" xmlns:openid=\"http://openid.net/xmlns/1.0\" xmlns=\"xri://$xrd*($v*2.0)\">\r\n"
@@ -42,5 +46,10 @@ public class Xrds extends AbstractIController {
         resp.addHeader("Cache-Control", "must-revalidate");// optional
         resp.setDateHeader("Last-Modified", now);
         resp.setDateHeader("Expires", now + CACHE_DURATION_IN_MS);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        doGet(req, resp);
     }
 }

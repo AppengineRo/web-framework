@@ -6,7 +6,7 @@
 
     <groupId>ro.appengine</groupId>
     <artifactId>web-framework</artifactId>
-    <version>0.2</version>
+    <version>0.3</version>
     <packaging>jar</packaging>
 
     <properties>
