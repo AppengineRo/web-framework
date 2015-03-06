@@ -21,11 +21,13 @@ public class FilteredRequest extends HttpServletRequestWrapper {
         String value = super.getParameter(paramName);
         return this.sanitize(value);
     }
+    public String getOriginalParameter(String paramName) {
+        return super.getParameter(paramName);
+    }
+    public String[] getOriginalParameterValues(String paramName) {
+        return super.getParameterValues(paramName);
+    }
 
-    /**
-     * Ignores the leading and trailing spaces from values
-     *
-     */
     @Override
     public String[] getParameterValues(String paramName) {
         String[] parameterValues = super.getParameterValues(paramName);
