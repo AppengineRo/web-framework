@@ -443,4 +443,8 @@ public class Utils {
         return result.substring(result.indexOf("~") + 1);
     }
 
+    public static String getServerVersion() {
+        return SystemProperty.applicationVersion.get();
+    }
+
 }
