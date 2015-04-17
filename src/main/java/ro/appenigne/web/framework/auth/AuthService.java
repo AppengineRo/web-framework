@@ -11,6 +11,7 @@ import ro.appenigne.web.framework.utils.Log;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import java.io.FileInputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 
 /**
@@ -19,8 +20,10 @@ import java.net.URLEncoder;
 public class AuthService {
     private HttpSession session;
     private SocialAuthManager authManager = null;
+    private HttpServletRequest request;
 
     public AuthService(HttpServletRequest req) {
+        this.request = req;
         this.session = req.getSession();
         if (session.getAttribute("authManager") != null) {
             authManager = (SocialAuthManager) session.getAttribute("authManager");
@@ -65,12 +68,10 @@ public class AuthService {
         try {
             SocialAuthConfig socialAuthConfig = SocialAuthConfig.getDefault();
             socialAuthConfig.addProvider("appengine", AppengineImpl.class);
-
             socialAuthConfig.load(new FileInputStream(System.getProperty("auth-config", "WEB-INF/auth-config/oauth_consumer.properties")));
-
             authManager = new SocialAuthManager();
             authManager.setSocialAuthConfig(socialAuthConfig);
-            String loginUrl = authManager.getAuthenticationUrl(provider, "https://764-cosmin-dot-admabeta.appspot.com/connect?redirect_to=" + URLEncoder.encode(returnUrl, "UTF-8"));
+            String loginUrl = authManager.getAuthenticationUrl(provider, getConnectUrl(returnUrl));
             session.setAttribute("authManager", authManager);
             return loginUrl;
         } catch (Exception e) {
@@ -84,5 +85,8 @@ public class AuthService {
         return "";
     }
 
-
+    private String getConnectUrl (String returnUrl) throws UnsupportedEncodingException {
+        String nakedDomain = request.getRequestURL().substring(0, request.getRequestURL().indexOf("/", 8));
+        return  nakedDomain+"/connect?redirect_to=" + URLEncoder.encode(returnUrl, "UTF-8");
+    }
 }
