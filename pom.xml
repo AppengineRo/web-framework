@@ -6,7 +6,7 @@
 
     <groupId>ro.appengine</groupId>
     <artifactId>web-framework</artifactId>
-    <version>0.3</version>
+    <version>0.4</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -45,6 +45,11 @@
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>1.7.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.brickred</groupId>
+            <artifactId>socialauth</artifactId>
+            <version>4.7</version>
         </dependency>
     </dependencies>
     <build>
@@ -99,6 +104,13 @@
                 <enabled>true</enabled>
                 <updatePolicy>daily</updatePolicy>
             </snapshots>
+        </repository>
+        <repository>
+            <id>sonatype-oss-public</id>
+            <url>https://oss.sonatype.org/content/groups/public/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
         </repository>
     </repositories>
     <prerequisites>

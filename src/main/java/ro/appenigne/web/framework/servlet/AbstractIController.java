@@ -10,9 +10,11 @@ import com.google.appengine.api.users.UserServiceFactory;
 import com.google.appengine.api.utils.SystemProperty;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.DeadlineExceededException;
+import org.brickred.socialauth.Profile;
 import ro.appenigne.web.framework.annotation.RequiredLogIn;
 import ro.appenigne.web.framework.annotation.RequiredType;
 import ro.appenigne.web.framework.annotation.XssCheck;
+import ro.appenigne.web.framework.auth.AuthService;
 import ro.appenigne.web.framework.datastore.Datastore;
 import ro.appenigne.web.framework.datastore.KeysOnlyDatastoreCallback;
 import ro.appenigne.web.framework.exception.InvalidAuthCookie;
@@ -42,8 +44,8 @@ public abstract class AbstractIController {
     public Entity contCurent = null;
     public Datastore datastore;
     private String currentEmail;
-    public User currentUser;
-    public UserService userService;
+    public Profile currentUser;
+    public AuthService userService;
 
     public void preInit() throws SendRedirect {
         String reqUrl = req.getRequestURL().toString();
@@ -76,7 +78,7 @@ public abstract class AbstractIController {
             initHttp(req, resp);
             preInit();
             setContCurent(contCurent);
-            this.userService = UserServiceFactory.getUserService();
+            this.userService = new AuthService(req);
             this.currentUser = userService.getCurrentUser();
             getCurrentEmail();
             createDatastore();
