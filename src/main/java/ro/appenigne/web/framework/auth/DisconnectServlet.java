@@ -16,7 +16,7 @@ public class DisconnectServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         AppEngineSession session = new AppEngineSession(req);
-        session.invalidate();
+        session.invalidate(resp);
         resp.sendRedirect(URLDecoder.decode(req.getParameter("redirect_to"), "UTF-8"));
     }
 }

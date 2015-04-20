@@ -44,7 +44,8 @@ public class AppEngineSession {
                     if (session != null) {
                         Date expiration = (Date) session.getProperty("expiration");
                         if (expiration.before(new Date())) {
-                            invalidate();
+                            memcache.delete(KeyFactory.keyToString(session.getKey()));
+                            datastore.delete(session.getKey());
                             session = null;
                         }
                     }
@@ -126,8 +127,14 @@ public class AppEngineSession {
     }
 
 
-    public void invalidate() {
-        memcache.delete(KeyFactory.keyToString(session.getKey()));
-        datastore.delete(session.getKey());
+    public void invalidate(HttpServletResponse resp) {
+        if (session!=null) {
+            String hash = KeyFactory.keyToString(session.getKey());
+            memcache.delete(hash);
+            datastore.delete(session.getKey());
+            Cookie cookie = new Cookie("GAESESS", hash);
+            cookie.setMaxAge(MAX_AGE);
+            resp.addCookie(cookie);
+        }
     }
 }
