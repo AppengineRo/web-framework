@@ -28,19 +28,17 @@ public class ConnectServlet extends HttpServlet {
                 try {
                     authManager.connect(requestParametersMap);
                     session.setAttribute("authManager", authManager, resp);
-                    resp.sendRedirect(URLDecoder.decode(req.getParameter("redirect_to"), "UTF-8"));
                 } catch (Exception e) {
                     Log.w(e);
                     resp.getWriter().print(e.getMessage());
                 }
             }else{
-                resp.getWriter().print("AuthManager is null");
+                Log.w("AuthManager is null");
             }
         }else{
-            resp.getWriter().print("session attribute AuthManager is null");
+            Log.w("session attribute AuthManager is null");
         }
-
-
+        resp.sendRedirect(URLDecoder.decode(req.getParameter("redirect_to"), "UTF-8"));
     }
 }
 
