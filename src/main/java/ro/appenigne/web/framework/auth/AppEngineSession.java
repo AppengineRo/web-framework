@@ -2,6 +2,7 @@ package ro.appenigne.web.framework.auth;
 
 import com.google.appengine.api.NamespaceManager;
 import com.google.appengine.api.datastore.*;
+import com.google.appengine.api.memcache.ErrorHandlers;
 import com.google.appengine.api.memcache.Expiration;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
@@ -12,6 +13,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.util.Date;
+import java.util.logging.Level;
 
 /**
  * Created by cosmin on 20/04/15.
@@ -23,6 +25,7 @@ public class AppEngineSession {
     private MemcacheService memcache = MemcacheServiceFactory.getMemcacheService();
 
     public AppEngineSession(HttpServletRequest req) {
+        memcache.setErrorHandler(ErrorHandlers.getConsistentLogAndContinue(Level.WARNING));
         Cookie[] cookies = req.getCookies();
         if(cookies !=null) {
             for (Cookie cookie : cookies) {
