@@ -15,7 +15,8 @@ import java.net.URLDecoder;
 public class DisconnectServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        req.getSession().invalidate();
+        AppEngineSession session = new AppEngineSession(req);
+        session.invalidate();
         resp.sendRedirect(URLDecoder.decode(req.getParameter("redirect_to"), "UTF-8"));
     }
 }

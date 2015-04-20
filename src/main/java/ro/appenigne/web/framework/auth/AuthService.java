@@ -9,7 +9,7 @@ import org.brickred.socialauth.SocialAuthManager;
 import ro.appenigne.web.framework.utils.Log;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
+import javax.servlet.http.HttpServletResponse;
 import java.io.FileInputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -18,13 +18,15 @@ import java.net.URLEncoder;
  * Created by cosmin on 17/04/15.
  */
 public class AuthService {
-    private HttpSession session;
+    private AppEngineSession session;
     private SocialAuthManager authManager = null;
     private HttpServletRequest request;
+    private HttpServletResponse response;
 
-    public AuthService(HttpServletRequest req) {
+    public AuthService(HttpServletRequest req, HttpServletResponse resp) {
         this.request = req;
-        this.session = req.getSession();
+        this.response = resp;
+        this.session = new AppEngineSession(req);
         if (session.getAttribute("authManager") != null) {
             authManager = (SocialAuthManager) session.getAttribute("authManager");
         }
@@ -37,7 +39,6 @@ public class AuthService {
             return userService.isUserAdmin();
         }
         return false;
-
     }
 
     public Profile getCurrentUser() {
@@ -72,7 +73,7 @@ public class AuthService {
             authManager = new SocialAuthManager();
             authManager.setSocialAuthConfig(socialAuthConfig);
             String loginUrl = authManager.getAuthenticationUrl(provider, getConnectUrl(returnUrl));
-            session.setAttribute("authManager", authManager);
+            session.setAttribute("authManager", authManager, response);
             return loginUrl;
         } catch (Exception e) {
 

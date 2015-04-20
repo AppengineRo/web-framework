@@ -78,7 +78,7 @@ public abstract class AbstractIController {
             initHttp(req, resp);
             preInit();
             setContCurent(contCurent);
-            this.userService = new AuthService(req);
+            this.userService = new AuthService(req, resp);
             this.currentUser = userService.getCurrentUser();
             getCurrentEmail();
             createDatastore();
