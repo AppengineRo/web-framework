@@ -33,7 +33,7 @@ public class AppEngineSession {
                         try {
                             NamespaceManager.set("");
                             session = datastore.get(KeyFactory.stringToKey(hash));
-                            memcache.put(hash, session);
+                            memcache.put(hash, session, Expiration.onDate((Date) session.getProperty("expiration")));
                         } catch (Exception e) {
                             Log.w(e);
                         }
