@@ -59,7 +59,7 @@ public class AppEngineSession {
         NamespaceManager.set("");
         if (session == null) {
             session = new Entity("GAESESS");
-            session.setProperty("expiration", new Date((new Date()).getTime() + MAX_AGE * 1000));
+            session.setProperty("expiration", new Date((new Date()).getTime() + (MAX_AGE * 1000)));
             datastore.put(session);
             String hash = KeyFactory.keyToString(session.getKey());
             memcache.put(hash, session, Expiration.byDeltaSeconds(MAX_AGE));
