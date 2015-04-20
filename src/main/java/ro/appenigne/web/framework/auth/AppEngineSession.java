@@ -33,6 +33,7 @@ public class AppEngineSession {
                         try {
                             NamespaceManager.set("");
                             session = datastore.get(KeyFactory.stringToKey(hash));
+                            memcache.put(hash, session);
                         } catch (Exception e) {
                             Log.w(e);
                         }
