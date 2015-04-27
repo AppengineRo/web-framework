@@ -66,6 +66,7 @@ public class AppEngineSession {
             memcache.put(hash, session, Expiration.byDeltaSeconds(MAX_AGE));
             Cookie cookie = new Cookie("GAESESS", hash);
             cookie.setMaxAge(MAX_AGE);
+            cookie.setPath("/");
             resp.addCookie(cookie);
         }
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
