@@ -35,7 +35,6 @@ public class ConnectServlet extends HttpServlet {
                         Log.w("Incercarea : "+retry+" (countdown de la 3)");
                         Log.w(e);
                         retry--;
-
                     }
                 }
             }else{
