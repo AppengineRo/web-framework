@@ -24,7 +24,7 @@ public class ConnectServlet extends HttpServlet {
         AppEngineSession session = new AppEngineSession(req);
         if(session.getAttribute("authManager")!=null){
             authManager = (SocialAuthManager) session.getAttribute("authManager");
-            if(authManager!=null && authManager.getCurrentAuthProvider()!=null){
+            if(authManager!=null){
                 while(retry>0) {
                     Map<String, String> requestParametersMap = SocialAuthUtil.getRequestParametersMap(req);
                     try {
