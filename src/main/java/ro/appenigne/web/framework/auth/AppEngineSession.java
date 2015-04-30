@@ -21,6 +21,7 @@ import java.util.logging.Level;
 public class AppEngineSession {
     public int MAX_AGE = 24 * 60 * 60; // 24 hours.
     private Entity session = null;
+    private String GAESESS = null;
     private DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
     private MemcacheService memcache = MemcacheServiceFactory.getMemcacheService();
 
@@ -31,14 +32,15 @@ public class AppEngineSession {
             for (Cookie cookie : cookies) {
                 if ("GAESESS".equals(cookie.getName())) {
                     String hash = cookie.getValue();
+                    GAESESS = hash;
                     session = (Entity) memcache.get(hash);
                     if (session == null) {
                         try {
                             NamespaceManager.set("");
                             session = datastore.get(KeyFactory.stringToKey(hash));
                             memcache.put(hash, session, Expiration.onDate((Date) session.getProperty("expiration")));
-                        } catch (Exception e) {
-                            Log.w(e);
+                        } catch (Exception ignored) {
+
                         }
                     }
                     if (session != null) {
@@ -54,6 +56,14 @@ public class AppEngineSession {
             }
         }
 
+    }
+
+    public Entity getSession(){
+        return session;
+    }
+
+    public String getGAESESS() {
+        return GAESESS;
     }
 
     public void setAttribute(String key, Object value, HttpServletResponse resp) {
@@ -80,19 +90,19 @@ public class AppEngineSession {
             memcache.put(hash, session, Expiration.onDate((Date) session.getProperty("expiration")));
             datastore.put(session);
         } catch (IOException e) {
-            // ignore close exception
+           Log.w(e);
         } finally {
             try {
                 if (out != null) {
                     out.close();
                 }
             } catch (IOException ex) {
-                // ignore close exception
+                Log.w(ex);
             }
             try {
                 bos.close();
             } catch (IOException ex) {
-                // ignore close exception
+                Log.w(ex);
             }
         }
     }
@@ -107,19 +117,19 @@ public class AppEngineSession {
                     in = new ObjectInputStream(bis);
                     return in.readObject();
                 } catch (IOException | ClassNotFoundException e) {
-                    // ignore close exception
+                    Log.w(e);
                 } finally {
                     try {
                         bis.close();
                     } catch (IOException ex) {
-                        // ignore close exception
+                        Log.w(ex);
                     }
                     try {
                         if (in != null) {
                             in.close();
                         }
                     } catch (IOException ex) {
-                        // ignore close exception
+                        Log.w(ex);
                     }
                 }
             }
@@ -129,13 +139,20 @@ public class AppEngineSession {
 
 
     public void invalidate(HttpServletResponse resp) {
-        if (session!=null) {
-            String hash = KeyFactory.keyToString(session.getKey());
-            memcache.delete(hash);
-            datastore.delete(session.getKey());
+        String hash = getGAESESS();
+        if (hash!=null) {
             Cookie cookie = new Cookie("GAESESS", hash);
-            cookie.setMaxAge(MAX_AGE);
+            cookie.setMaxAge(0);
+            cookie.setPath("/");
             resp.addCookie(cookie);
+            memcache.delete(getGAESESS());
+            try{
+                if (session!=null) {
+                    datastore.delete(session.getKey());
+                }
+            }catch (Exception ignored){
+
+            }
         }
     }
 }

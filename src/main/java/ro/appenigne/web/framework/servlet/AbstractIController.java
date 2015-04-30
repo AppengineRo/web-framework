@@ -153,6 +153,7 @@ public abstract class AbstractIController {
 
     @SuppressWarnings("unused")
     public String getCurrentEmail() {
+
         if (this.currentEmail == null) {
             if (Utils.isTask(req)) {
                 this.currentEmail = req.getParameter("_emailContCurent");

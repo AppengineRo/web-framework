@@ -19,18 +19,24 @@ import java.util.Map;
 public class ConnectServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        int retry = 3;
         SocialAuthManager authManager;
         AppEngineSession session = new AppEngineSession(req);
         if(session.getAttribute("authManager")!=null){
             authManager = (SocialAuthManager) session.getAttribute("authManager");
             if(authManager!=null){
-                Map<String, String> requestParametersMap = SocialAuthUtil.getRequestParametersMap(req);
-                try {
-                    authManager.connect(requestParametersMap);
-                    session.setAttribute("authManager", authManager, resp);
-                } catch (Exception e) {
-                    Log.w(e);
-                    resp.getWriter().print(e.getMessage());
+                while(retry>0) {
+                    Map<String, String> requestParametersMap = SocialAuthUtil.getRequestParametersMap(req);
+                    try {
+                        authManager.connect(requestParametersMap);
+                        session.setAttribute("authManager", authManager, resp);
+                        retry = 0;
+                    } catch (Exception e) {
+                        Log.w("Incercarea : "+retry+" (countdown de la 3)");
+                        Log.w(e);
+                        retry--;
+
+                    }
                 }
             }else{
                 Log.w("AuthManager is null");

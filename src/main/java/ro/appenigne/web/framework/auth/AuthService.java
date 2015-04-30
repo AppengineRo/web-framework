@@ -3,11 +3,13 @@ package ro.appenigne.web.framework.auth;
 import com.google.appengine.api.users.User;
 import com.google.appengine.api.users.UserService;
 import com.google.appengine.api.users.UserServiceFactory;
+import org.brickred.socialauth.AuthProvider;
 import org.brickred.socialauth.Profile;
 import org.brickred.socialauth.SocialAuthConfig;
 import org.brickred.socialauth.SocialAuthManager;
 import ro.appenigne.web.framework.utils.Log;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.FileInputStream;
@@ -27,6 +29,12 @@ public class AuthService {
         this.request = req;
         this.response = resp;
         this.session = new AppEngineSession(req);
+       if(this.session.getSession()==null && this.session.getGAESESS()!=null){
+            Cookie cookie = new Cookie("GAESESS", this.session.getGAESESS());
+            cookie.setMaxAge(0);
+            cookie.setPath("/");
+            resp.addCookie(cookie);
+        }
         if (session.getAttribute("authManager") != null) {
             authManager = (SocialAuthManager) session.getAttribute("authManager");
         }
@@ -48,8 +56,10 @@ public class AuthService {
     public Profile getCurrentProfile() {
         if (authManager != null && authManager.getCurrentAuthProvider() != null) {
             try {
-                Profile profile = authManager.getCurrentAuthProvider().getUserProfile();
-                return profile;
+                AuthProvider currentAuthProvider = authManager.getCurrentAuthProvider();
+                if(currentAuthProvider != null){
+                    return currentAuthProvider.getUserProfile();
+                }
             } catch (Exception e) {
                 Log.w(e);
             }
