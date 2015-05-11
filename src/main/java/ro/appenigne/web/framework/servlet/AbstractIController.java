@@ -426,17 +426,21 @@ public abstract class AbstractIController {
     }
 
     public void logAuthInfo() {
+        String email = getCurrentEmail();
+        if (email == null){
+            email = "null";
+        }
         if (contCurent != null) {
             if (userService.getCurrentUser() != null) {
-                Log.c("Utilizator logat autentificat: " + getCurrentEmail());
+                Log.c("Utilizator logat autentificat: " + email);
             } else if (Utils.isTask(req)) {
-                Log.c("Utilizator nelogat autentificat prin task:" + getCurrentEmail());
+                Log.c("Utilizator nelogat autentificat prin task:" + email);
             } else {
-                Log.s("Utilizator nelogat autentificat: " + getCurrentEmail());
+                Log.s("Utilizator nelogat autentificat: " + email);
             }
         } else {
             if (userService.getCurrentUser() != null) {
-                Log.c("Utilizator logat neautentificat: " + getCurrentEmail());
+                Log.c("Utilizator logat neautentificat: " + email);
             }
             Log.c("Utilizator nelogat.");
         }
