@@ -92,8 +92,9 @@ public class AuthService {
         return null;
     }
 
-    public String createLogoutURL(String returnUrl) {
-        return "";
+    public String createLogoutURL(String returnUrl) throws UnsupportedEncodingException {
+        String nakedDomain = request.getRequestURL().substring(0, request.getRequestURL().indexOf("/", 8));
+        return  nakedDomain+"/disconnect?redirect_to=" + URLEncoder.encode(returnUrl, "UTF-8");
     }
 
     private String getConnectUrl (String returnUrl) throws UnsupportedEncodingException {
