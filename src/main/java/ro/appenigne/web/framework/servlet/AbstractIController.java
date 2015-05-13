@@ -436,7 +436,7 @@ public abstract class AbstractIController {
             } else if (Utils.isTask(req)) {
                 Log.c("Utilizator nelogat autentificat prin task:" + email);
             } else {
-                Log.s("Utilizator nelogat autentificat: " + email);
+                Log.d("Utilizator nelogat autentificat: " + email);
             }
         } else {
             if (userService.getCurrentUser() != null) {
