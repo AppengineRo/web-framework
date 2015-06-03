@@ -158,7 +158,11 @@ public abstract class AbstractIController {
             if (Utils.isTask(req)) {
                 this.currentEmail = req.getParameter("_emailContCurent");
             } else if (currentUser != null) {
-                this.currentEmail = currentUser.getEmail();
+                if(currentUser.getProviderId().equals("twitter")){
+                    this.currentEmail = currentUser.getDisplayName();
+                }else {
+                    this.currentEmail = currentUser.getEmail();
+                }
             }
         }
         return this.currentEmail;
