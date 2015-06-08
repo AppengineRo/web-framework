@@ -8,6 +8,7 @@ import org.brickred.socialauth.exception.AccessTokenExpireException;
 import org.brickred.socialauth.exception.SocialAuthException;
 import org.brickred.socialauth.oauthstrategy.OAuthStrategyBase;
 import org.brickred.socialauth.util.AccessGrant;
+import org.brickred.socialauth.util.OAuthConfig;
 import org.brickred.socialauth.util.Response;
 
 import java.io.InputStream;
@@ -25,6 +26,9 @@ public class AppengineImpl extends AbstractProvider implements AuthProvider, Ser
 
 
     public AppengineImpl() throws Exception {
+    }
+    public AppengineImpl(OAuthConfig props) throws Exception{
+
     }
 
     @Override
