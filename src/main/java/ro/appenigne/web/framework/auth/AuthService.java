@@ -16,9 +16,6 @@ import java.io.FileInputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 
-/**
- * Created by cosmin on 17/04/15.
- */
 public class AuthService {
     private AppEngineSession session;
     private SocialAuthManager authManager = null;
@@ -29,7 +26,7 @@ public class AuthService {
         this.request = req;
         this.response = resp;
         this.session = new AppEngineSession(req);
-       if(this.session.getSession()==null && this.session.getGAESESS()!=null){
+        if (this.session.getSession() == null && this.session.getGAESESS() != null) {
             Cookie cookie = new Cookie("GAESESS", this.session.getGAESESS());
             cookie.setMaxAge(0);
             cookie.setPath("/");
