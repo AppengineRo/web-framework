@@ -76,6 +76,7 @@ public class AuthService {
         try {
             SocialAuthConfig socialAuthConfig = SocialAuthConfig.getDefault();
             socialAuthConfig.addProvider("appengine", AppengineImpl.class);
+            socialAuthConfig.addProvider("yahoo", YahooImpl.class);
             socialAuthConfig.load(new FileInputStream(System.getProperty("auth-config", "WEB-INF/auth-config/oauth_consumer.properties")));
             authManager = new SocialAuthManager();
             authManager.setSocialAuthConfig(socialAuthConfig);
@@ -83,7 +84,6 @@ public class AuthService {
             session.setAttribute("authManager", authManager, response);
             return loginUrl;
         } catch (Exception e) {
-
             Log.w(provider, e);
         }
         return null;
