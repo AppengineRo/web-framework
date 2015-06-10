@@ -118,6 +118,9 @@ public class AppEngineSession {
                     return in.readObject();
                 } catch (IOException | ClassNotFoundException e) {
                     Log.w(e);
+                    memcache.delete(KeyFactory.keyToString(session.getKey()));
+                    datastore.delete(session.getKey());
+                    session = null;
                 } finally {
                     try {
                         bis.close();
