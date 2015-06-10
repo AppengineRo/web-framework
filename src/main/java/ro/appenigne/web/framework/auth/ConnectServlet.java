@@ -29,11 +29,14 @@ public class ConnectServlet extends HttpServlet {
                     Map<String, String> requestParametersMap = SocialAuthUtil.getRequestParametersMap(req);
                     try {
                         authManager.connect(requestParametersMap);
+                        if(authManager.getCurrentAuthProvider() != null && authManager.getCurrentAuthProvider().getUserProfile()!=null){
+                            Log.d("s-a connectat: ",authManager.getCurrentAuthProvider().getUserProfile().getEmail());
+                        }
                         session.setAttribute("authManager", authManager, resp);
                         retry = 0;
                     } catch (Exception e) {
-                        Log.w("Incercarea : "+retry+" (countdown de la 3)");
-                        Log.w(e);
+                        Log.i("Incercarea : "+retry+" (countdown de la 3)");
+                        Log.i(e);
                         retry--;
                     }
                 }
