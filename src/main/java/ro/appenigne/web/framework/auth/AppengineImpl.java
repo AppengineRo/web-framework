@@ -23,7 +23,7 @@ import java.util.Map;
  * @author tarunn@brickred.com
  */
 public class AppengineImpl extends AbstractProvider implements AuthProvider, Serializable {
-
+    private static final long serialVersionUID = 1L;
 
     public AppengineImpl() throws Exception {
     }
