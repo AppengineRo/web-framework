@@ -8,6 +8,7 @@ import org.brickred.socialauth.Profile;
 import org.brickred.socialauth.SocialAuthConfig;
 import org.brickred.socialauth.SocialAuthManager;
 import ro.appenigne.web.framework.utils.Log;
+import ro.appenigne.web.framework.utils.RequestUtils;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -90,12 +91,10 @@ public class AuthService {
     }
 
     public String createLogoutURL(String returnUrl) throws UnsupportedEncodingException {
-        String nakedDomain = request.getRequestURL().substring(0, request.getRequestURL().indexOf("/", 8));
-        return  nakedDomain+"/disconnect?redirect_to=" + URLEncoder.encode(returnUrl, "UTF-8");
+        return  RequestUtils.getNaketUrl(request)+"/disconnect?redirect_to=" + URLEncoder.encode(returnUrl, "UTF-8");
     }
 
     private String getConnectUrl (String returnUrl) throws UnsupportedEncodingException {
-        String nakedDomain = request.getRequestURL().substring(0, request.getRequestURL().indexOf("/", 8));
-        return  nakedDomain+"/connect?redirect_to=" + URLEncoder.encode(returnUrl, "UTF-8");
+        return  RequestUtils.getNaketUrl(request)+"/connect?redirect_to=" + URLEncoder.encode(returnUrl, "UTF-8");
     }
 }
