@@ -25,3 +25,12 @@ buildNumber.properties
 out
 gen
 
+### Bower
+bower_components/
+node_modules/
+components/
+dist/
+.sass-cache
+.tmp
+
+
