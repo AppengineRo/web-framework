@@ -83,7 +83,7 @@
                 <version>2.8</version>
                 <configuration>
                     <reportOutputDirectory>javadoc</reportOutputDirectory>
-                    <additionalparam>-Xdoclint:none</additionalparam>
+                    <!--<additionalparam>-Xdoclint:none</additionalparam>-->
                 </configuration>
                 <executions>
                     <execution>
