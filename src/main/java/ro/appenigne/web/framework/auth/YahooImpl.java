@@ -1,37 +1,23 @@
 package ro.appenigne.web.framework.auth;
 
 
-import java.io.InputStream;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.brickred.socialauth.AbstractProvider;
-import org.brickred.socialauth.AuthProvider;
-import org.brickred.socialauth.Contact;
-import org.brickred.socialauth.Permission;
-import org.brickred.socialauth.Profile;
+import org.brickred.socialauth.*;
 import org.brickred.socialauth.exception.AccessTokenExpireException;
 import org.brickred.socialauth.exception.ServerDataException;
 import org.brickred.socialauth.exception.SocialAuthException;
 import org.brickred.socialauth.oauthstrategy.OAuth1;
 import org.brickred.socialauth.oauthstrategy.OAuthStrategyBase;
-import org.brickred.socialauth.util.AccessGrant;
-import org.brickred.socialauth.util.BirthDate;
-import org.brickred.socialauth.util.Constants;
-import org.brickred.socialauth.util.MethodType;
-import org.brickred.socialauth.util.OAuthConfig;
-import org.brickred.socialauth.util.Response;
-import org.brickred.socialauth.util.XMLParseUtil;
+import org.brickred.socialauth.util.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+
+import java.io.InputStream;
+import java.io.Serializable;
+import java.util.*;
 
 /**
  * Provider implementation for Yahoo. This uses the oAuth API provided by Yahoo
@@ -163,7 +149,7 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
     }
 
     private Profile getProfile() throws Exception {
-        LOG.debug("Obtaining user profile");
+        LOG.info("Obtaining user profile");
         Profile profile = new Profile();
         String guid = (String) accessToken.getAttribute("xoauth_yahoo_guid");
         if (guid.contains("<")) {
@@ -187,7 +173,7 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
         try {
             result = serviceResponse
                     .getResponseBodyAsString(Constants.ENCODING);
-            LOG.debug("User Profile :" + result);
+            ro.appenigne.web.framework.utils.Log.i("User Profile :" + result);
         } catch (Exception exc) {
             throw new SocialAuthException("Failed to read response from  "
                     + url, exc);
@@ -245,20 +231,35 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
                                 && "true".equals(eobj.getString("primary"))) {
                             if (eobj.has("handle")) {
                                 profile.setEmail(eobj.getString("handle"));
+                                break;
                             }
-                            break;
                         }
                     }
-                    for (int i = 0; i < earr.length(); i++) {
-                        JSONObject eobj = earr.getJSONObject(i);
-                        if (eobj.has("handle")) {
-                            profile.setEmail(eobj.getString("handle"));
-                            break;
+                    if (profile.getEmail() == null) {
+                        for (int i = 0; i < earr.length(); i++) {
+                            JSONObject eobj = earr.getJSONObject(i);
+                            if (eobj.has("handle")) {
+                                profile.setEmail(eobj.getString("handle"));
+                                break;
+                            }
                         }
-
                     }
                 }
-
+                if (profile.getEmail() == null) {
+                    if (pObj.has("ims")) {
+                        JSONArray earr = pObj.getJSONArray("ims");
+                        if (profile.getEmail() == null) {
+                            for (int i = 0; i < earr.length(); i++) {
+                                JSONObject eobj = earr.getJSONObject(i);
+                                if (eobj.has("handle") && eobj.has("type") && eobj.getString("type").equals("YAHOO")) {
+                                    profile.setEmail(eobj.getString("handle")+"@yahoo.com");
+                                    ro.appenigne.web.framework.utils.Log.i("email from ims:", profile.getEmail());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
             }
             profile.setProviderId(getProviderId());
             if (config.isSaveRawResponse()) {
@@ -267,6 +268,7 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
             userProfile = profile;
             return profile;
         } catch (Exception e) {
+            ro.appenigne.web.framework.utils.Log.i("Failed to parse the user profile json : ",result,e);
             throw new ServerDataException(
                     "Failed to parse the user profile json : " + result, e);
 
@@ -305,7 +307,7 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
         }
         NodeList contactsList = root.getElementsByTagName("contact");
         if (contactsList != null && contactsList.getLength() > 0) {
-            LOG.debug("Found contacts : " + contactsList.getLength());
+            LOG.info("Found contacts : " + contactsList.getLength());
             for (int i = 0; i < contactsList.getLength(); i++) {
                 Element contact = (Element) contactsList.item(i);
                 NodeList fieldList = contact.getElementsByTagName("fields");
@@ -363,7 +365,7 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
                 }
             }
         } else {
-            LOG.debug("No contacts were obtained from : " + CONTACTS_URL);
+            LOG.info("No contacts were obtained from : " + CONTACTS_URL);
         }
         return plist;
     }
