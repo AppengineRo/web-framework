@@ -5,6 +5,7 @@ import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.Text;
 import com.google.appengine.api.users.User;
 
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -149,7 +150,8 @@ public class EntityUtils {
         } else if(o instanceof Integer){
             return String.valueOf(o);
         } else if(o instanceof Double){
-            return String.valueOf(o);
+            DecimalFormat nf = new DecimalFormat("0.####");
+            return nf.format(o);
         } else if(o instanceof Long){
             return ((Long) o)+"";
         } else if(o instanceof List){
