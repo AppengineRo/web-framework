@@ -2,11 +2,11 @@ package ro.appenigne.web.framework.utils;
 
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.Text;
+import com.google.appengine.api.users.User;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class EntityUtils {
 
@@ -121,4 +121,45 @@ public class EntityUtils {
         return list;
     }
 
+    /**
+     * Returns the value as a string<br />
+     * Does not return null
+     */
+    public static String getAsString(Entity entity, String prop) {
+        Object o = entity.getProperty(prop);
+        return getAsString(o);
+    }
+    /**
+     * Returns the value as a string<br />
+     * Does not return null
+     */
+    public static String getAsString(Object o) {
+        if(o==null){
+            return "";
+        }
+        if(o instanceof Date){
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            return sdf.format(((Date) o));
+        } else if(o instanceof String){
+            return (String) o;
+        } else if(o instanceof User){
+            return GsonUtils.getGson().toJson(o);
+        } else if(o instanceof Text){
+            return ((Text) o).getValue();
+        } else if(o instanceof Integer){
+            return String.valueOf(o);
+        } else if(o instanceof Double){
+            return String.valueOf(o);
+        } else if(o instanceof Long){
+            return ((Long) o)+"";
+        } else if(o instanceof List){
+            List lo=((List) o);
+            List<String> l=new ArrayList<>();
+            for(Object o2:lo){
+                l.add(getAsString(o2));
+            }
+            return StringUtils.join(",", l);
+        }
+        return String.valueOf(o);
+    }
 }
