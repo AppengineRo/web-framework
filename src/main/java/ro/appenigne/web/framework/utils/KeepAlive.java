@@ -13,7 +13,7 @@ public class KeepAlive extends HttpServlet {
 
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-		Log.d("do nothing");
+		//Log.d("do nothing");
 	}
 
 	@Override
