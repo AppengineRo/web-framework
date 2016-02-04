@@ -2,8 +2,10 @@ package ro.appenigne.web.framework.utils;
 
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.api.datastore.Text;
 import com.google.appengine.api.users.User;
+import ro.appenigne.web.framework.exception.InvalidField;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -154,6 +156,8 @@ public class EntityUtils {
             return nf.format(o);
         } else if(o instanceof Long){
             return ((Long) o)+"";
+        } else if(o instanceof Key){
+            return KeyFactory.keyToString((Key) o);
         } else if(o instanceof List){
             List lo=((List) o);
             List<String> l=new ArrayList<>();
@@ -163,5 +167,29 @@ public class EntityUtils {
             return StringUtils.join(",", l);
         }
         return String.valueOf(o);
+    }
+
+    /**
+     * Returns the value as a string<br />
+     * Does not return null
+     */
+    public static Key getAsKey(Entity entity, String prop) throws InvalidField {
+        Object o = entity.getProperty(prop);
+        return getAsKey(o);
+    }
+    /**
+     * Returns the value as a string<br />
+     * Does not return null
+     */
+    public static Key getAsKey(Object o) throws InvalidField {
+        if(o==null){
+            return null;
+        }
+        if(o instanceof String){
+            return KeyFactory.stringToKey((String) o);
+        } else if(o instanceof Key) {
+            return (Key) o;
+        }
+        throw new InvalidField("Nu pot sa convertesc " + o+ " in key");
     }
 }
