@@ -23,6 +23,8 @@ public class Datastore implements DatastoreService {
     private LinkedHashMap<String, ArrayList<IDatastorePostPut>> postPuts = new LinkedHashMap<>();
     private LinkedHashMap<String, ArrayList<IDatastorePrePut>> prePuts = new LinkedHashMap<>();
     private HttpServletRequest req = null;
+    private boolean asyncQueries = true;
+
     public Datastore(HttpServletRequest req) {
         this.datastore = DatastoreServiceFactory.getDatastoreService();
         this.asyncDatastoreService = DatastoreServiceFactory.getAsyncDatastoreService();
@@ -177,25 +179,39 @@ public class Datastore implements DatastoreService {
     }
 
     public void toPut(Entity entity) {
-        triggerPrePut(entity);
-        toPutObjects.add(asyncDatastoreService.put(entity));
-        postPutEntities.add(entity);
-    }
-
-    public void toPut(Entity... entities) {
-        for (Entity entity : entities) {
+        if (isAsyncQueries()) {
             triggerPrePut(entity);
             toPutObjects.add(asyncDatastoreService.put(entity));
             postPutEntities.add(entity);
+        } else {
+            put(entity);
+        }
+    }
+
+    public void toPut(Entity... entities) {
+        if (isAsyncQueries()) {
+            for (Entity entity : entities) {
+                triggerPrePut(entity);
+                toPutObjects.add(asyncDatastoreService.put(entity));
+                postPutEntities.add(entity);
+            }
+        } else {
+            List<Entity> toPut = new ArrayList<>();
+            Collections.addAll(toPut, entities);
+            put(toPut);
         }
     }
 
     public void toPut(Iterable<Entity> entities) {
-        for (Entity entity : entities) {
-            triggerPrePut(entity);
-            postPutEntities.add(entity);
+        if (isAsyncQueries()) {
+            for (Entity entity : entities) {
+                triggerPrePut(entity);
+                postPutEntities.add(entity);
+            }
+            toPutObjects.add(asyncDatastoreService.put(entities));
+        } else {
+            put(entities);
         }
-        toPutObjects.add(asyncDatastoreService.put(entities));
 
     }
 
@@ -347,5 +363,13 @@ public class Datastore implements DatastoreService {
     @Override
     public Collection<Transaction> getActiveTransactions() {
         return datastore.getActiveTransactions();
+    }
+
+    public boolean isAsyncQueries() {
+        return asyncQueries;
+    }
+
+    public void setAsyncQueries(boolean asyncQueries) {
+        this.asyncQueries = asyncQueries;
     }
 }

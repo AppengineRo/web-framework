@@ -296,7 +296,6 @@ public abstract class AbstractIController {
             //Log.d(iae);
             return null;
         }
-
         if (keyCont.getName() != null) {
             if (keyCont.getName().equals(AbstractUserType.SuperAdministrator)) {
                 return getSuperAdminCont(req);
