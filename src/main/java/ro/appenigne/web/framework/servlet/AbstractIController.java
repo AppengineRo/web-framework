@@ -30,6 +30,8 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -285,7 +287,7 @@ public abstract class AbstractIController {
         return "Error";
     }
 
-    public Entity getCont(String _hashContCurent) throws EntityNotFoundException, UnauthorizedAccess {
+    public Entity getCont(String _hashContCurent) throws IllegalStateException, EntityNotFoundException, UnauthorizedAccess {
         Key keyCont;
         try {
             keyCont = KeyFactory.stringToKey(_hashContCurent);
@@ -296,9 +298,16 @@ public abstract class AbstractIController {
             //Log.d(iae);
             return null;
         }
+
         if (keyCont.getName() != null) {
+            if (keyCont.getName().equals(AbstractUserType.Candidat)) {
+                return getCandidatCont(null);
+            }
             if (keyCont.getName().equals(AbstractUserType.SuperAdministrator)) {
                 return getSuperAdminCont(req);
+            }
+            if (keyCont.getName().startsWith("Nevalidat")) {
+                return Utils.getContNevalidat(null, keyCont.getName().substring("Nevalidat".length()), userService);
             }
         } else {
             Entity cont = datastore.getFromMemOrDb(_hashContCurent);
@@ -310,20 +319,111 @@ public abstract class AbstractIController {
                     return null;
                 }
             }
+
             if (!userService.isUserAdmin()) {
+
+                String emailCurent = currentUser.getEmail().toLowerCase();
+                if(req.getParameter("sudo")!=null && !req.getParameter("sudo").isEmpty()){
+
+                    List<String> conturiPermise = new ArrayList<>();
+                    conturiPermise.add("Secretar");
+                    conturiPermise.add("Profesor");
+                    conturiPermise.add("Student");
+
+                    if(conturiPermise.contains(EntityUtils.getAsString(cont, "tipCont"))){
+                        emailCurent = req.getParameter("sudo").toLowerCase();
+                    }
+
+                }
+
                 if (contMasterSudo != null) {
-                    if (!UserUtils.getList(contMasterSudo, "email").contains(currentUser.getEmail())) {
-                        Log.c("Cu Sudo", cont, currentUser.getEmail());
+                    if (!UserUtils.getList(contMasterSudo, "email").contains(currentUser.getEmail().toLowerCase()) &&
+                            !UserUtils.getList(contMasterSudo, "emailParinte").contains(currentUser.getEmail().toLowerCase())) {
+                        Log.c("Cu Sudo", cont, emailCurent);
                         throw new UnauthorizedAccess("User does not match Account");
                     }
-                } else if (!UserUtils.getList(cont, "email").contains(currentUser.getEmail())) {
-                    Log.c("Fara Sudo", cont, currentUser.getEmail());
+                } else if (!UserUtils.getList(cont, "email").contains(emailCurent) &&
+                        !UserUtils.getList(cont, "emailParinte").contains(emailCurent)) {
+                    Log.c("Fara Sudo", cont, emailCurent);
                     throw new UnauthorizedAccess("User does not match Account");
                 }
             }
+
             return cont;
         }
         return null;
+    }
+
+    public Entity getCandidatCont(Key keyClient) throws EntityNotFoundException {
+        //UserService userService = UserServiceFactory.getUserService();
+        Profile user = userService.getCurrentUser();
+        if (user == null && !Utils.isTask(req)) {
+            return null;
+        }
+
+        Entity candidat = new Entity("Cont", AbstractUserType.Candidat);
+        candidat.setProperty("email", getCurrentEmail());
+
+        //Candidat Validat
+        List<Entity> results = new ArrayList<>();
+        boolean candidatValidat = false;
+        if(keyClient==null && this.req.getParameter("parentHash")!=null){
+            Key keyRequest = KeyFactory.stringToKey(this.req.getParameter("parentHash"));
+            if(keyRequest.getKind().equalsIgnoreCase("Client")){
+                keyClient = keyRequest;
+                Query q = new Query("AnUniversitar");
+                q.setFilter(Query.CompositeFilterOperator.and(Query.FilterOperator.GREATER_THAN_OR_EQUAL.of("dataSfarsitInscrieri",
+                        new Date()),
+                        Query.FilterOperator.EQUAL.of("ancestor", keyClient)
+                ));
+                q.addSort("dataSfarsitInscrieri");
+                PreparedQuery pq = this.datastore.prepare(q);
+                results = pq.asList(FetchOptions.Builder.withDefaults());
+            }else if(keyRequest.getKind().equalsIgnoreCase("AnUniversitar")){
+                results.add(this.datastore.get(keyRequest));
+            }
+        }
+        Utils.filterDeletedEntities(results);
+        for (Entity anUniversitar : results) {
+            if (((Date) anUniversitar.getProperty("dataInceputInscrieri")).before(new Date()) &&
+                    ((Date) anUniversitar.getProperty("dataSfarsitInscrieri")).after(new Date())) {
+                NamespaceManager.set(Long.toString(anUniversitar.getKey().getId()));
+                Query qCandidat = new Query("Candidat");
+                if (this.req.getParameter("sudo") != null && this.userService.isUserAdmin()) {
+                    qCandidat.setFilter(Query.FilterOperator.EQUAL.of("email", this.req.getParameter("sudo")));
+                } else {
+                    qCandidat.setFilter(Query.FilterOperator.EQUAL.of("email", getCurrentEmail()));
+                }
+                PreparedQuery pqCandidat = this.datastore.prepare(qCandidat);
+                List<Entity> candidati = pqCandidat.asList(FetchOptions.Builder.withLimit(1));
+                if (candidati.size() == 1) {
+                    Key detaliiCandidatKey = KeyFactory.createKey(candidati.get(0).getKey(), "DetaliiCandidat", "0");
+                    Entity detaliiCandidat = this.datastore.get(detaliiCandidatKey);
+                    if("Da".equalsIgnoreCase((String)detaliiCandidat.getProperty("fisaInscriereDepusa"))){
+                        candidatValidat = true;
+                    }
+                }
+                NamespaceManager.set("");
+            }
+        }
+        //Candidat Validat
+
+        if(candidatValidat){
+            candidat.setProperty("tipCont", AbstractUserType.CandidatValidat);
+        }else{
+            candidat.setProperty("tipCont", AbstractUserType.Candidat);
+        }
+
+
+        candidat.setProperty("numeActual", StringUtils.formatEmail(getCurrentEmail()));
+        candidat.setProperty("prenumeActual", "");
+        if (keyClient != null) {
+            List<Key> listKeysClient = new ArrayList<>();
+            listKeysClient.add(keyClient);
+            candidat.setProperty("keyClient", listKeysClient);
+        }
+        Log.d(candidat);
+        return candidat;
     }
 
     public Entity getSuperAdminCont(HttpServletRequest req) throws IllegalStateException, IllegalArgumentException {

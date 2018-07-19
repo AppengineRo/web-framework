@@ -12,6 +12,8 @@ import com.google.appengine.api.utils.SystemProperty;
 import com.google.apphosting.api.ApiProxy;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import org.brickred.socialauth.Profile;
+import ro.appenigne.web.framework.auth.AuthService;
 import ro.appenigne.web.framework.datastore.Datastore;
 import ro.appenigne.web.framework.form.FormValidate;
 
@@ -33,7 +35,25 @@ public class Utils {
         }
         return key;
     }
+    public static Entity getContNevalidat(Key keyClient, String tip, AuthService userService) {
+        Profile user = userService.getCurrentUser();
+        if (user == null) {
+            return null;
+        }
 
+        Entity contNevalidat = new Entity("Cont", "Nevalidat" + tip);
+        contNevalidat.setProperty("email", user.getEmail().toLowerCase());
+        contNevalidat.setProperty("tipCont", "Nevalidat");
+        contNevalidat.setProperty("numeActual", StringUtils.formatEmail(user.getEmail().toLowerCase()));
+        contNevalidat.setProperty("prenumeActual", "");
+        if (keyClient != null) {
+            List<Key> listKeysClient = new ArrayList<>();
+            listKeysClient.add(keyClient);
+            contNevalidat.setProperty("keyClient", listKeysClient);
+        }
+
+        return contNevalidat;
+    }
     public static Key getDetaliiKey(Object o) {
         if (o instanceof Key) {
             return getDetaliiKey((Key) o);
