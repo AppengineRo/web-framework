@@ -289,19 +289,19 @@ public abstract class AbstractIController {
 
     public Entity getCont(String _hashContCurent) throws IllegalStateException, EntityNotFoundException, UnauthorizedAccess {
         Key keyCont;
+        Log.d(_hashContCurent);
         try {
             keyCont = KeyFactory.stringToKey(_hashContCurent);
-        } catch (NullPointerException npe) {
+        } catch (NullPointerException | IllegalArgumentException npe) {
             //Log.d(npe);
             return null;
-        } catch (IllegalArgumentException iae) {
-            //Log.d(iae);
-            return null;
         }
-
+        Log.d(keyCont);
         if (keyCont.getName() != null) {
             if (keyCont.getName().equals(AbstractUserType.Candidat)) {
-                return getCandidatCont(null);
+                Entity candidatCont = getCandidatCont(null);
+                Log.d(candidatCont);
+                return candidatCont;
             }
             if (keyCont.getName().equals(AbstractUserType.SuperAdministrator)) {
                 return getSuperAdminCont(req);

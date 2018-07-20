@@ -31,6 +31,7 @@ public class AuthService {
             Cookie cookie = new Cookie("GAESESS", this.session.getGAESESS());
             cookie.setMaxAge(0);
             cookie.setPath("/");
+            Log.d("sterge cookie",this.session.getGAESESS());
             resp.addCookie(cookie);
         }
         if (session.getAttribute("authManager") != null) {
