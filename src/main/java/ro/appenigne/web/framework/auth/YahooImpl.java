@@ -7,7 +7,7 @@ import org.brickred.socialauth.*;
 import org.brickred.socialauth.exception.AccessTokenExpireException;
 import org.brickred.socialauth.exception.ServerDataException;
 import org.brickred.socialauth.exception.SocialAuthException;
-import org.brickred.socialauth.oauthstrategy.OAuth1;
+import org.brickred.socialauth.oauthstrategy.OAuth2;
 import org.brickred.socialauth.oauthstrategy.OAuthStrategyBase;
 import org.brickred.socialauth.util.*;
 import org.json.JSONArray;
@@ -44,12 +44,10 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
 
     static {
         ENDPOINTS = new HashMap<String, String>();
-        ENDPOINTS.put(Constants.OAUTH_REQUEST_TOKEN_URL,
-                "https://api.login.yahoo.com/oauth/v2/get_request_token");
         ENDPOINTS.put(Constants.OAUTH_AUTHORIZATION_URL,
-                "https://api.login.yahoo.com//oauth/v2/request_auth");
+                "https://api.login.yahoo.com/oauth2/request_auth");
         ENDPOINTS.put(Constants.OAUTH_ACCESS_TOKEN_URL,
-                "https://api.login.yahoo.com/oauth/v2/get_token");
+                "https://api.login.yahoo.com/oauth2/get_token");
     }
 
     /**
@@ -85,7 +83,7 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
             config.setAccessTokenUrl(ENDPOINTS
                     .get(Constants.OAUTH_ACCESS_TOKEN_URL));
         }
-        authenticationStrategy = new OAuth1(config, ENDPOINTS);
+        authenticationStrategy = new OAuth2(config, ENDPOINTS);
     }
 
     /**
@@ -144,7 +142,7 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
     private Profile doVerifyResponse(final Map<String, String> requestParams)
             throws Exception {
         LOG.info("Verifying the authentication response from provider");
-        accessToken = authenticationStrategy.verifyResponse(requestParams);
+        accessToken = authenticationStrategy.verifyResponse(requestParams, MethodType.POST.toString());
         return getProfile();
     }
 
@@ -165,6 +163,7 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
                     "Failed to retrieve the user profile from  " + url, e);
         }
         if (serviceResponse.getStatus() != 200) {
+            ro.appenigne.web.framework.utils.Log.w(serviceResponse.getResponseBodyAsString(Constants.ENCODING));
             throw new SocialAuthException(
                     "Failed to retrieve the user profile from  " + url
                             + ". Staus :" + serviceResponse.getStatus());
