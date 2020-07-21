@@ -30,7 +30,7 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
         Serializable {
 
     private static final long serialVersionUID = 903564874550419470L;
-    private static final String PROFILE_URL = "https://social.yahooapis.com/v1/user/%1$s/profile?format=json";
+    private static final String PROFILE_URL = "https://api.login.yahoo.com/openid/v1/userinfo";
     private static final String CONTACTS_URL = "https://social.yahooapis.com/v1/user/%1$s/contacts;count=max";
     private static final String UPDATE_STATUS_URL = "https://social.yahooapis.com/v1/user/%1$s/profile/status";
     private final Log LOG = LogFactory.getLog(YahooImpl.class);
@@ -157,7 +157,9 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
         String url = String.format(PROFILE_URL, guid);
         Response serviceResponse = null;
         try {
-            serviceResponse = authenticationStrategy.executeFeed(url);
+            HashMap<String, String> headers = new HashMap<>();
+            headers.put("Authorization", "Bearer "+accessToken.getKey());
+            serviceResponse = authenticationStrategy.executeFeed(url, "GET",null,headers,null);
         } catch (Exception e) {
             throw new SocialAuthException(
                     "Failed to retrieve the user profile from  " + url, e);
@@ -258,6 +260,19 @@ public class YahooImpl extends AbstractProvider implements AuthProvider,
                             }
                         }
                     }
+                }
+            }else{
+                if (jobj.has("family_name")) {
+                    profile.setLastName(jobj.getString("family_name"));
+                }
+                if (jobj.has("given_name")) {
+                    profile.setFirstName(jobj.getString("given_name"));
+                }
+                if (jobj.has("email")) {
+                    profile.setEmail(jobj.getString("email"));
+                }
+                if (jobj.has("picture")) {
+                    profile.setProfileImageURL(jobj.getString("picture"));
                 }
             }
             profile.setProviderId(getProviderId());
