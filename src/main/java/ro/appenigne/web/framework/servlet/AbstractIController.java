@@ -45,7 +45,7 @@ public abstract class AbstractIController {
     public HttpServletResponse resp;
     public Entity contCurent = null;
     public Datastore datastore;
-    private String currentEmail;
+    public String currentEmail;
     public Profile currentUser;
     public AuthService userService;
 
