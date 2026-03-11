@@ -7,7 +7,7 @@
 
     <groupId>ro.appengine</groupId>
     <artifactId>web-framework</artifactId>
-    <version>0.13</version>
+    <version>0.15</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -57,11 +57,11 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <version>2.5.1</version>
+                <version>3.8.0</version>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                     <excludes>
                         <exclude>**/deprecated/**</exclude>
                     </excludes>
